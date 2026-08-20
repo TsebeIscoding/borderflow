@@ -10,7 +10,7 @@ import java.util.UUID;
  * events locally; they replicate outward, they are never edited).
  * Idempotency is enforced in the database, not here -- the
  * `skip_duplicate_handover` trigger silently absorbs a re-inserted
- * `eventId` (see db/migrations/*/V1). That means this entity's insert
+ * `eventId` (see the V1 migration under db/migrations). That means this insert
  * can be safely retried by a client without needing idempotency-key
  * bookkeeping in the service layer.
  */

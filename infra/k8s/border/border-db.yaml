@@ -5,7 +5,7 @@ metadata:
   namespace: border
 type: Opaque
 stringData:
-  POSTGRES_PASSWORD: border_pw
+  POSTGRES_PASSWORD: CHANGE_ME_local_dev_only
 ---
 apiVersion: v1
 kind: ConfigMap

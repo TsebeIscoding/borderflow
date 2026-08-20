@@ -12,7 +12,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,23 +50,11 @@ class HandoverServiceTest {
         service = new HandoverService(tripMasterRepository, tripStateRepository, handoverRepository, THIS_SITE);
     }
 
-    private TripMaster masterWithDestination(String destinationSiteId) throws Exception {
-        TripMaster master = new TripMaster();
-        setField(master, "tripId", TRIP_ID);
-        setField(master, "destinationSiteId", destinationSiteId);
-        return master;
-    }
-
-    private static void setField(Object target, String field, Object value) throws Exception {
-        Field f = target.getClass().getDeclaredField(field);
-        f.setAccessible(true);
-        f.set(target, value);
-    }
-
     @Test
     void rejectsHandoverWhenThisSiteDoesNotCurrentlyHoldTheTrip() {
+        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination");
         TripState state = new TripState(TRIP_ID, "Arrived", "port", 3); // held at "port", not "border"
-        when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(new TripMaster()));
+        when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(master));
         when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(state));
 
         assertThatThrownBy(() -> service.handOff(TRIP_ID, new HandoverRequest("destination", "liaison-01")))
@@ -78,8 +65,9 @@ class HandoverServiceTest {
 
     @Test
     void rejectsHandoverOnAnAlreadyDeliveredTrip() {
+        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination");
         TripState state = new TripState(TRIP_ID, "Delivered", THIS_SITE, 4);
-        when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(new TripMaster()));
+        when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(master));
         when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(state));
 
         assertThatThrownBy(() -> service.handOff(TRIP_ID, new HandoverRequest("destination", "liaison-01")))
@@ -96,8 +84,8 @@ class HandoverServiceTest {
     }
 
     @Test
-    void handingOffToTheFinalDestinationMarksTripDelivered() throws Exception {
-        TripMaster master = masterWithDestination("destination");
+    void handingOffToTheFinalDestinationMarksTripDelivered() {
+        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination");
         TripState state = new TripState(TRIP_ID, "Arrived", THIS_SITE, 3);
         when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(master));
         when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(state));
@@ -112,8 +100,8 @@ class HandoverServiceTest {
     }
 
     @Test
-    void handingOffToAnIntermediateSiteMarksTripArrivedNotDelivered() throws Exception {
-        TripMaster master = masterWithDestination("destination");
+    void handingOffToAnIntermediateSiteMarksTripArrivedNotDelivered() {
+        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination");
         TripState state = new TripState(TRIP_ID, "AtOrigin", THIS_SITE, 1);
         when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(master));
         when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(state));

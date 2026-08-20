@@ -8,9 +8,10 @@ import java.util.UUID;
  * Maps to the `trip_state` table -- the State fragment. Multi-leader:
  * writable at whichever site currently holds the trip. Conflict
  * resolution (Lamport comparison) is enforced by a Postgres trigger, not
- * application code -- see db/migrations/*/V1__initial_schema.sql. This
- * entity only ever needs to set values honestly; it does not need to
- * defend against a stale write winning, the database already does that.
+ * application code -- see the V1 migration under db/migrations (both the
+ * depot and non-depot copies). This entity only ever needs to set values
+ * honestly; it does not need to defend against a stale write winning,
+ * the database already does that.
  */
 @Entity
 @Table(name = "trip_state")

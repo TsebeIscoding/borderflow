@@ -36,6 +36,13 @@ public class TripMaster {
         // JPA
     }
 
+    public TripMaster(UUID tripId, String originSiteId, String destinationSiteId) {
+        this.tripId = tripId;
+        this.originSiteId = originSiteId;
+        this.destinationSiteId = destinationSiteId;
+        this.createdAt = OffsetDateTime.now();
+    }
+
     public UUID getTripId() {
         return tripId;
     }

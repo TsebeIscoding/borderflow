@@ -6,7 +6,16 @@
 set -e
 
 SITES=(depot border port destination)
-declare -A PASSWORDS=( [depot]=depot_pw [border]=border_pw [port]=port_pw [destination]=destination_pw )
+# Passwords are read from environment variables, NOT hardcoded, so this
+# script always matches whatever POSTGRES_PASSWORD is actually set to in
+# each site's Secret manifest (infra/k8s/<site>/<site>-db.yaml). Export
+# these before running, e.g.:
+#   export DEPOT_DB_PASSWORD=... BORDER_DB_PASSWORD=... PORT_DB_PASSWORD=... DESTINATION_DB_PASSWORD=...
+: "${DEPOT_DB_PASSWORD:?Set DEPOT_DB_PASSWORD to match the Secret in infra/k8s/depot/depot-db.yaml}"
+: "${BORDER_DB_PASSWORD:?Set BORDER_DB_PASSWORD to match the Secret in infra/k8s/border/border-db.yaml}"
+: "${PORT_DB_PASSWORD:?Set PORT_DB_PASSWORD to match the Secret in infra/k8s/port/port-db.yaml}"
+: "${DESTINATION_DB_PASSWORD:?Set DESTINATION_DB_PASSWORD to match the Secret in infra/k8s/destination/destination-db.yaml}"
+declare -A PASSWORDS=( [depot]="$DEPOT_DB_PASSWORD" [border]="$BORDER_DB_PASSWORD" [port]="$PORT_DB_PASSWORD" [destination]="$DESTINATION_DB_PASSWORD" )
 
 # Cross-namespace DNS: <service>.<namespace>.svc.cluster.local
 dns_for() { echo "${1}-db.${1}.svc.cluster.local"; }

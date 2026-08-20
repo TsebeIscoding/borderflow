@@ -22,6 +22,18 @@ around.
   If they're stuck on `ContainerCreating` or `Init`, it's almost always
   a slow/flaky image pull from `quay.io`, not a real config problem —
   give it a few minutes before troubleshooting further.
+- **Set real Postgres passwords before deploying.** Each site's Secret
+  manifest (`<site>/<site>-db.yaml`) ships with
+  `POSTGRES_PASSWORD: CHANGE_ME_local_dev_only` — replace that with an
+  actual value in all four files, then export the matching env vars for
+  `setup-replication-k8s.sh` (step 4 below), e.g.:
+  ```bash
+  export DEPOT_DB_PASSWORD=... BORDER_DB_PASSWORD=... PORT_DB_PASSWORD=... DESTINATION_DB_PASSWORD=...
+  ```
+  These are only ever used for in-cluster Postgres-to-Postgres
+  replication connections — nothing here is internet-facing (see notes
+  at the bottom of this file) — but don't leave the placeholder in a
+  real deployment.
 
 ## 1. Deploy the namespaces and StatefulSets
 

@@ -6,7 +6,6 @@
 set -e
 
 SITES=(depot border port destination)
-declare -A PASSWORDS=( [depot]=depot_pw [border]=border_pw [port]=port_pw [destination]=destination_pw )
 
 dns_for() { echo "${1}-db.${1}.svc.cluster.local"; }
 
