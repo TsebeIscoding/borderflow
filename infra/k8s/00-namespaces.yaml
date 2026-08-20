@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: depot
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: border
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: port
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: destination
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: control-tower

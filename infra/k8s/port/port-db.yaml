@@ -1,0 +1,183 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: port-db-secret
+  namespace: port
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: port_pw
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: port-db-schema
+  namespace: port
+data:
+  01_schema.sql: |
+    -- BorderFlow K8s schema — PORT site
+    -- NOTE: DDL is NOT replicated by Postgres logical replication.
+    -- This exact schema is duplicated identically at every site's init folder
+    -- on purpose — in the real system this would be a shared Flyway/versioned
+    -- migration applied independently at every site.
+
+    -- Master fragment: created at Depot, replicated one-way to other sites
+    CREATE TABLE trip_master (
+        trip_id           UUID PRIMARY KEY,
+        origin_site_id    TEXT NOT NULL,
+        destination_site_id TEXT NOT NULL,
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    -- State fragment: mesh-replicated, single-writer-at-a-time via ownership token
+    CREATE TABLE trip_state (
+        trip_id           UUID PRIMARY KEY,
+        status            TEXT NOT NULL DEFAULT 'Planned',
+        current_site_id   TEXT NOT NULL,
+        lamport_ts        BIGINT NOT NULL DEFAULT 0,
+        updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    -- Event log: append-only, mesh-replicated, deduped by event_id
+    CREATE TABLE handover (
+        event_id          UUID PRIMARY KEY,
+        trip_id           UUID NOT NULL,
+        from_site_id      TEXT NOT NULL,
+        to_site_id        TEXT NOT NULL,
+        verified_by       TEXT NOT NULL,
+        occurred_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    -- Where rejected/conflicting updates are surfaced for manual review
+    CREATE TABLE conflict_exceptions (
+        id                BIGSERIAL PRIMARY KEY,
+        table_name        TEXT,
+        row_key           TEXT,
+        local_row         JSONB,
+        incoming_row      JSONB,
+        detected_at       TIMESTAMPTZ DEFAULT now()
+    );
+
+    -- ── Idempotency trigger for the event log ──────────────────────────────
+    CREATE OR REPLACE FUNCTION skip_duplicate_handover() RETURNS trigger AS $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM handover WHERE event_id = NEW.event_id) THEN
+        RETURN NULL;   -- absorb the duplicate, don't error
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER trg_dedupe_handover
+      BEFORE INSERT ON handover
+      FOR EACH ROW EXECUTE FUNCTION skip_duplicate_handover();
+
+    -- CRITICAL: the apply worker runs with session_replication_role = 'replica',
+    -- so a normal trigger is skipped for rows arriving via replication.
+    -- ENABLE ALWAYS makes it fire on both local AND replicated writes.
+    ALTER TABLE handover ENABLE ALWAYS TRIGGER trg_dedupe_handover;
+
+    -- Postgres runs replication apply workers with an EMPTY search_path
+    -- (deliberate security fix). Unqualified table names in a trigger fail
+    -- ONLY when fired by replication, not on local writes. Pin it explicitly.
+    ALTER FUNCTION skip_duplicate_handover() SET search_path = public;
+
+    -- ── Conflict-resolution trigger for the state fragment ─────────────────
+    CREATE OR REPLACE FUNCTION resolve_trip_state_conflict() RETURNS trigger AS $$
+    BEGIN
+      IF NEW.lamport_ts < OLD.lamport_ts
+         OR (NEW.lamport_ts = OLD.lamport_ts AND NEW.current_site_id > OLD.current_site_id) THEN
+        INSERT INTO conflict_exceptions(table_name, row_key, local_row, incoming_row)
+          VALUES ('trip_state', OLD.trip_id::text, row_to_json(OLD), row_to_json(NEW));
+        RETURN NULL;   -- reject the losing update, keep local state
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER trg_resolve_trip_state_conflict
+      BEFORE UPDATE ON trip_state
+      FOR EACH ROW EXECUTE FUNCTION resolve_trip_state_conflict();
+
+    ALTER TABLE trip_state ENABLE ALWAYS TRIGGER trg_resolve_trip_state_conflict;
+
+    ALTER FUNCTION resolve_trip_state_conflict() SET search_path = public;
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: port-db
+  namespace: port
+spec:
+  selector:
+    app: port-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: port-db
+  namespace: port
+spec:
+  serviceName: port-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: port-db
+  template:
+    metadata:
+      labels:
+        app: port-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18
+          args:
+            - -c
+            - wal_level=logical
+            - -c
+            - max_replication_slots=10
+            - -c
+            - max_wal_senders=10
+            - -c
+            - max_worker_processes=24
+            - -c
+            - max_logical_replication_workers=20
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              value: borderflow
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: port-db-secret
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 5432
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "384Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: port-db-data
+              mountPath: /var/lib/postgresql/data
+            - name: schema-init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: schema-init
+          configMap:
+            name: port-db-schema
+  volumeClaimTemplates:
+    - metadata:
+        name: port-db-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 500Mi

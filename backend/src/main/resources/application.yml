@@ -1,0 +1,27 @@
+# Per-site config. In deployment, SITE_ID and the datasource URL are
+# injected per Kubernetes namespace (see ../../infra/k8s/<site>/*.yaml) --
+# this file holds only the defaults shared across all four sites.
+
+spring:
+  application:
+    name: borderflow-site-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/borderflow
+    username: app_user
+    password: ${DB_APP_USER_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate   # schema is owned by Flyway (../../db/migrations), never by JPA
+  flyway:
+    enabled: false          # migrations are applied via the site-specific kubectl/flyway
+                             # flow in infra/k8s, not by this service on boot -- see
+                             # db/migrations/README.md
+
+site:
+  id: ${SITE_ID:unset}      # depot | border | port | destination
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
