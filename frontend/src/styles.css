@@ -1,0 +1,150 @@
+/* ============================================================
+   BorderFlow design tokens
+   Freight-yard palette: near-black steel, safety-orange for
+   "in transit / current position", customs-clear green for
+   delivered. Not a SaaS dashboard palette on purpose -- this is
+   an operational tool for depot/border/port/destination staff,
+   modeled on shipping manifests and customs stamps rather than
+   a generic admin template.
+   ============================================================ */
+
+:root {
+  /* Color */
+  --bf-bg: #14171c;
+  --bf-surface: #1c2128;
+  --bf-surface-raised: #232933;
+  --bf-border: #2d333b;
+  --bf-text: #e6e8eb;
+  --bf-text-muted: #8b949e;
+  --bf-accent: #ff8a34;      /* in-transit / current waypoint */
+  --bf-accent-dim: #7a4423;
+  --bf-success: #3fb950;     /* delivered / customs-clear */
+  --bf-success-dim: #1f4d28;
+  --bf-danger: #f85149;
+
+  /* Type */
+  --bf-font-display: 'IBM Plex Sans Condensed', sans-serif;
+  --bf-font-body: 'Inter', sans-serif;
+  --bf-font-mono: 'IBM Plex Mono', monospace;
+
+  /* Layout */
+  --bf-radius: 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bf-bg);
+  color: var(--bf-text);
+  font-family: var(--bf-font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Visible keyboard focus everywhere -- never suppressed */
+:focus-visible {
+  outline: 2px solid var(--bf-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--bf-font-display);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.bf-eyebrow {
+  font-family: var(--bf-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bf-text-muted);
+}
+
+.bf-panel {
+  background: var(--bf-surface);
+  border: 1px solid var(--bf-border);
+  border-radius: var(--bf-radius);
+}
+
+.bf-btn {
+  font-family: var(--bf-font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.65rem 1.1rem;
+  border-radius: var(--bf-radius);
+  border: 1px solid var(--bf-border);
+  background: var(--bf-surface-raised);
+  color: var(--bf-text);
+  cursor: pointer;
+}
+
+.bf-btn:hover:not(:disabled) {
+  border-color: var(--bf-accent);
+}
+
+.bf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bf-btn--primary {
+  background: var(--bf-accent);
+  border-color: var(--bf-accent);
+  color: #1a1103;
+}
+
+.bf-btn--primary:hover:not(:disabled) {
+  background: #ffa15f;
+}
+
+.bf-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--bf-font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--bf-border);
+}
+
+.bf-status-chip--delivered {
+  color: var(--bf-success);
+  border-color: var(--bf-success-dim);
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.bf-status-chip--transit {
+  color: var(--bf-accent);
+  border-color: var(--bf-accent-dim);
+  background: rgba(255, 138, 52, 0.08);
+}

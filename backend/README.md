@@ -13,6 +13,13 @@ What's implemented:
 - Application entry point and Spring Boot wiring (`BorderFlowSiteApplication`)
 - `TripState` and `TripMaster` JPA entities + repositories, mapped to
   their respective tables
+- **Trip read endpoints** — `GET /api/trips` (every trip this site's
+  local database currently knows about) and `GET /api/trips/{id}`
+  (single trip). Both read from a join of the Master and State
+  fragments purely at the response-DTO level (`TripSummaryResponse`) —
+  the fragment boundary only constrains writes, not reads. No
+  cross-site network call is involved; see the class javadoc on
+  `TripController` for why that's safe given replication.
 - **The `Handover` use case** — `POST /api/trips/{tripId}/handover`.
   Accepts a handover request, writes a `Handover` event, advances
   `TripState`, and enforces the business rules the database
@@ -33,8 +40,6 @@ What's not implemented yet:
   connectivity back to an auth server. Currently the `/api/trips/**`
   endpoints are unauthenticated — do not point this at anything but a
   local dev cluster until that's built.
-- Read endpoints (e.g. `GET /api/trips/{tripId}`) — only the write path
-  exists so far.
 
 ## The Handover use case, and what it does vs. leaves to the database
 

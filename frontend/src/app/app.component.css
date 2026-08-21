@@ -1,0 +1,54 @@
+.bf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 2rem;
+  border-bottom: 1px solid var(--bf-border);
+  background: var(--bf-surface);
+}
+
+.bf-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--bf-text);
+}
+
+.bf-header__mark {
+  font-size: 1.3rem;
+  color: var(--bf-accent);
+}
+
+.bf-header__wordmark {
+  font-family: var(--bf-font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+}
+
+.bf-header__site {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
+}
+
+.bf-header__site-label {
+  font-size: 0.7rem;
+  color: var(--bf-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bf-header__site-value {
+  font-family: var(--bf-font-mono);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.bf-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2rem;
+}

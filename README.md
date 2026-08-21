@@ -24,10 +24,13 @@ borderflow/
 │                            depot/ and non-depot/ (DDL is not replicated
 │                            by Postgres logical replication -- see
 │                            db/migrations/README.md)
-├── backend/                 Spring Boot skeleton -- one service instance
-│                            deployed per site, JPA read path started
-│                            for TripState, Handover use case + auth
-│                            config not yet implemented
+├── backend/                 Spring Boot -- one service instance deployed
+│                            per site, Trip read endpoints + the
+│                            Handover use case implemented and unit
+│                            tested, auth config not yet implemented
+├── frontend/                 Angular UI -- one build deployed per site,
+│                            manifest dashboard + handover form, talks
+│                            only to that site's own backend
 └── scripts/                 Reproducible test scripts for the corridor,
                              failure-recovery, and conflict-resolution
                              tests documented in docs/testing/
@@ -62,14 +65,19 @@ row. Full rationale: `docs/design/vertical-fragmentation-design.md`.
 - 🚧 Container / Vehicle / Driver / Client fragments: schema + replication
   wiring generated (`db/migrations/*/V4*`, `infra/k8s/extend-replication-k8s.sh`),
   not yet applied/tested on the live cluster
-- ✅ Spring Boot service: `Handover` use case implemented and unit
-  tested (`POST /api/trips/{tripId}/handover`) — accepts a handover
-  request, writes the event, advances trip state, enforces the
-  business rules the database doesn't (site-holds-trip, terminal
+- ✅ Spring Boot service: Trip read endpoints (`GET /api/trips`,
+  `GET /api/trips/{id}`) and the `Handover` use case implemented and
+  unit tested (`POST /api/trips/{tripId}/handover`) — accepts a
+  handover request, writes the event, advances trip state, enforces
+  the business rules the database doesn't (site-holds-trip, terminal
   status). See `backend/README.md` for what it does vs. leaves to the
   database's own triggers.
-- 🚧 JWT auth config not yet implemented — endpoints are currently
-  unauthenticated, local dev cluster only
+- ✅ Angular frontend: manifest dashboard + trip detail with a working
+  handover form, reading and writing against the endpoints above. See
+  `frontend/README.md` for why there's no cross-site "global" view by
+  design.
+- 🚧 JWT auth config not yet implemented — both backend and frontend
+  are currently unauthenticated, local dev cluster only
 
 ## Getting started
 

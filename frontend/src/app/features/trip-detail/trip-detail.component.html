@@ -1,0 +1,74 @@
+<a routerLink="/" class="bf-back">← Manifest</a>
+
+@if (loading()) {
+  <p class="bf-hint">Loading trip…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-detail__error">{{ error() }}</div>
+} @else if (trip(); as t) {
+  <div class="bf-eyebrow">Trip {{ t.tripId }}</div>
+  <h1>{{ siteLabels[t.originSiteId] ?? t.originSiteId }} → {{ siteLabels[t.destinationSiteId] ?? t.destinationSiteId }}</h1>
+
+  <div class="bf-panel bf-detail__rail-panel">
+    <bf-route-rail [currentSiteId]="t.currentSiteId" [delivered]="t.status === 'Delivered'" />
+    <div class="bf-detail__meta">
+      <span
+        class="bf-status-chip"
+        [class.bf-status-chip--delivered]="t.status === 'Delivered'"
+        [class.bf-status-chip--transit]="t.status !== 'Delivered'"
+      >
+        {{ t.status }}
+      </span>
+      <span class="bf-detail__lamport">lamport_ts {{ t.lamportTs }}</span>
+    </div>
+  </div>
+
+  <div class="bf-panel bf-detail__form-panel">
+    @if (canInitiateHandover(t)) {
+      <h2 class="bf-detail__form-title">Hand off custody</h2>
+      <p class="bf-hint">
+        This site ({{ siteLabels[thisSiteId] ?? thisSiteId }}) currently holds this trip. Confirm the receiving
+        site and who verified the transfer.
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="submitHandover()" class="bf-form">
+        <label class="bf-form__field">
+          <span class="bf-form__label">Hand off to</span>
+          <select formControlName="toSiteId" class="bf-form__input">
+            <option value="" disabled>Select receiving site</option>
+            @for (site of destinationOptions(); track site) {
+              <option [value]="site">{{ siteLabels[site] }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="bf-form__field">
+          <span class="bf-form__label">Verified by</span>
+          <input
+            class="bf-form__input"
+            type="text"
+            formControlName="verifiedBy"
+            placeholder="e.g. liaison-01"
+          />
+        </label>
+
+        <button type="submit" class="bf-btn bf-btn--primary" [disabled]="form.invalid || submitting()">
+          {{ submitting() ? 'Recording handover…' : 'Confirm handover' }}
+        </button>
+
+        @if (handoverError()) {
+          <p class="bf-form__error">{{ handoverError() }}</p>
+        }
+        @if (handoverSuccess()) {
+          <p class="bf-form__success">{{ handoverSuccess() }}</p>
+        }
+      </form>
+    } @else if (t.status === 'Delivered') {
+      <p class="bf-hint">This trip has been delivered. No further handover is possible.</p>
+    } @else {
+      <p class="bf-hint">
+        This trip is currently held at {{ siteLabels[t.currentSiteId] ?? t.currentSiteId }}, not this site
+        ({{ siteLabels[thisSiteId] ?? thisSiteId }}). Only the site currently holding a trip can hand it off.
+      </p>
+    }
+  </div>
+}

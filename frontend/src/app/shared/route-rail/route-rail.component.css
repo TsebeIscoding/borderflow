@@ -1,0 +1,77 @@
+.bf-rail {
+  display: flex;
+  align-items: center;
+}
+
+.bf-rail__waypoint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 2rem;
+}
+
+.bf-rail__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-family: var(--bf-font-mono);
+  border: 1px solid var(--bf-border);
+  color: var(--bf-text-muted);
+}
+
+.bf-rail__waypoint[data-state='cleared'] .bf-rail__dot {
+  color: var(--bf-success);
+  border-color: var(--bf-success-dim);
+  background: rgba(63, 185, 80, 0.1);
+}
+
+.bf-rail__waypoint[data-state='current'] .bf-rail__dot {
+  color: var(--bf-accent);
+  border-color: var(--bf-accent);
+  background: rgba(255, 138, 52, 0.12);
+}
+
+.bf-rail__label {
+  font-family: var(--bf-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bf-text-muted);
+}
+
+.bf-rail__waypoint[data-state='current'] .bf-rail__label {
+  color: var(--bf-text);
+}
+
+.bf-rail__connector {
+  height: 1px;
+  width: 2.5rem;
+  background: var(--bf-border);
+  margin: 0 0.15rem;
+  margin-bottom: 1.35rem;
+}
+
+.bf-rail__connector[data-state='cleared'] {
+  background: var(--bf-success-dim);
+}
+
+/* Compact mode: dashboard rows -- dots only, tight spacing, no labels */
+.bf-rail--compact .bf-rail__waypoint {
+  min-width: 0;
+}
+
+.bf-rail--compact .bf-rail__dot {
+  width: 1.1rem;
+  height: 1.1rem;
+  font-size: 0.6rem;
+}
+
+.bf-rail--compact .bf-rail__connector {
+  width: 1rem;
+  margin-bottom: 0;
+}

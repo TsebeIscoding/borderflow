@@ -1,0 +1,25 @@
+<div class="bf-rail" [class.bf-rail--compact]="compact">
+  @for (site of sites; track site; let last = $last) {
+    <div class="bf-rail__waypoint" [attr.data-state]="waypointState(site)">
+      <span class="bf-rail__dot" [attr.aria-hidden]="true">
+        @switch (waypointState(site)) {
+          @case ('cleared') {
+            ✓
+          }
+          @case ('current') {
+            ●
+          }
+          @default {
+            ○
+          }
+        }
+      </span>
+      @if (!compact) {
+        <span class="bf-rail__label">{{ labels[site] }}</span>
+      }
+    </div>
+    @if (!last) {
+      <div class="bf-rail__connector" [attr.data-state]="waypointState(site)"></div>
+    }
+  }
+</div>

@@ -1,0 +1,41 @@
+<div class="bf-eyebrow">Active manifest</div>
+<h1>Trips</h1>
+
+@if (loading()) {
+  <p class="bf-dashboard__hint">Loading manifest…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-dashboard__error">
+    <strong>Manifest unavailable.</strong>
+    <span>{{ error() }}</span>
+  </div>
+} @else if (trips().length === 0) {
+  <div class="bf-panel bf-dashboard__empty">
+    <p>No trips on this site's manifest yet.</p>
+    <p class="bf-dashboard__hint">
+      Trips appear here once seeded at Depot and replicated to this site.
+    </p>
+  </div>
+} @else {
+  <div class="bf-panel bf-manifest">
+    <div class="bf-manifest__row bf-manifest__row--head">
+      <span>Trip</span>
+      <span>Route</span>
+      <span>Status</span>
+      <span></span>
+    </div>
+    @for (trip of trips(); track trip.tripId) {
+      <a class="bf-manifest__row" [routerLink]="['/trips', trip.tripId]">
+        <span class="bf-manifest__id">{{ trip.tripId.slice(0, 8) }}</span>
+        <bf-route-rail [currentSiteId]="trip.currentSiteId" [delivered]="trip.status === 'Delivered'" [compact]="true" />
+        <span
+          class="bf-status-chip"
+          [class.bf-status-chip--delivered]="trip.status === 'Delivered'"
+          [class.bf-status-chip--transit]="trip.status !== 'Delivered'"
+        >
+          {{ trip.status }}
+        </span>
+        <span class="bf-manifest__lamport">ts {{ trip.lamportTs }}</span>
+      </a>
+    }
+  </div>
+}
