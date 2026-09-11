@@ -42,6 +42,7 @@ byte-for-byte identical between the two folders.
 | V3 | — | ✅ | `REVOKE` on `trip_master` from `app_user`. Fixes a real bug found in testing: without this, a non-origin site could silently write to a Master fragment and the change would never replicate anywhere — permanent, undetected divergence, since Master fragments have no conflict-resolution trigger the way State fragments do |
 | V4 | ✅ (+ PII) | ✅ | Container / Vehicle / Driver / Client Master + State fragments, Milestone / Incident / Trip_Container event logs, matching dedup + conflict-resolution triggers |
 | V5 | — | ✅ | Same `REVOKE` pattern as V3, applied preemptively to the new Master fragments from V4, rather than waiting to rediscover the same bug per table |
+| V6 | ✅ (+ AUDITOR seed) | ✅ | `app_users` table for site-local staff accounts, backing `POST /api/auth/login`. **Never added to any publication** in `setup-replication-k8s.sh`/`extend-replication-k8s.sh` — there is no global user directory, by design. Depot additionally seeds an `AUDITOR` account, since only Depot's key is trusted to issue cross-site tokens (see `backend/src/main/java/com/borderflow/auth/JwtService.java`) |
 
 Full write-up of the V3 bug — how it was found, why it happened, and how
 the fix was verified — is in `../../docs/testing/test-results.md`.

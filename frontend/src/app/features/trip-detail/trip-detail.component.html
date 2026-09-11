@@ -64,6 +64,10 @@
       </form>
     } @else if (t.status === 'Delivered') {
       <p class="bf-hint">This trip has been delivered. No further handover is possible.</p>
+    } @else if (!auth.isOperator) {
+      <p class="bf-hint">
+        Signed in as {{ auth.session()?.role }} — read-only access. Only an OPERATOR can hand off a trip.
+      </p>
     } @else {
       <p class="bf-hint">
         This trip is currently held at {{ siteLabels[t.currentSiteId] ?? t.currentSiteId }}, not this site

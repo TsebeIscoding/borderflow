@@ -52,3 +52,46 @@
   margin: 0 auto;
   padding: 2rem;
 }
+
+.bf-header__right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.bf-header__user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.bf-header__user-name {
+  font-family: var(--bf-font-mono);
+  font-size: 0.85rem;
+}
+
+.bf-header__user-role {
+  font-family: var(--bf-font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bf-text-muted);
+  border: 1px solid var(--bf-border);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+
+.bf-header__logout {
+  font-family: var(--bf-font-mono);
+  font-size: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--bf-text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.bf-header__logout:hover {
+  color: var(--bf-text);
+}

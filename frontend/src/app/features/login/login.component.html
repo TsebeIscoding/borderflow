@@ -1,0 +1,26 @@
+<div class="bf-login">
+  <div class="bf-panel bf-login__panel">
+    <div class="bf-eyebrow">{{ siteLabel }} manifest access</div>
+    <h1>Sign in</h1>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="bf-form">
+      <label class="bf-form__field">
+        <span class="bf-form__label">Username</span>
+        <input class="bf-form__input" type="text" formControlName="username" autocomplete="username" />
+      </label>
+
+      <label class="bf-form__field">
+        <span class="bf-form__label">Password</span>
+        <input class="bf-form__input" type="password" formControlName="password" autocomplete="current-password" />
+      </label>
+
+      <button type="submit" class="bf-btn bf-btn--primary" [disabled]="form.invalid || submitting()">
+        {{ submitting() ? 'Signing in…' : 'Sign in' }}
+      </button>
+
+      @if (error()) {
+        <p class="bf-form__error">{{ error() }}</p>
+      }
+    </form>
+  </div>
+</div>

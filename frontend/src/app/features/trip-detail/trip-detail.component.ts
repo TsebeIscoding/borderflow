@@ -5,6 +5,7 @@ import { TripService } from '../../core/services/trip.service';
 import { SITE_LABELS, SITE_ORDER, SiteId, TripSummary } from '../../core/models/trip.model';
 import { RouteRailComponent } from '../../shared/route-rail/route-rail.component';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'bf-trip-detail',
@@ -18,6 +19,7 @@ export class TripDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly tripService = inject(TripService);
   private readonly fb = inject(FormBuilder);
+  readonly auth = inject(AuthService);
 
   readonly trip = signal<TripSummary | null>(null);
   readonly loading = signal(true);
@@ -83,8 +85,15 @@ export class TripDetailComponent implements OnInit {
     });
   }
 
-  /** This site can only initiate a handover if it currently holds the trip -- mirrors HandoverService's own rule. */
+  /**
+   * This site can only initiate a handover if it currently holds the
+   * trip AND the signed-in user is an OPERATOR -- mirrors both rules
+   * HandoverController enforces server-side (@PreAuthorize +
+   * HandoverService). An AUDITOR never sees this form, even if the
+   * site/status conditions would otherwise allow it, since their
+   * cross-site token was never meant to carry write access anywhere.
+   */
   canInitiateHandover(trip: TripSummary): boolean {
-    return trip.currentSiteId === this.thisSiteId && trip.status !== 'Delivered';
+    return this.auth.isOperator && trip.currentSiteId === this.thisSiteId && trip.status !== 'Delivered';
   }
 }

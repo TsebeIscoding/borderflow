@@ -1,5 +1,6 @@
 package com.borderflow.common;
 
+import com.borderflow.auth.InvalidCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -20,6 +21,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(InvalidHandoverException.class)
     public ResponseEntity<Map<String, Object>> handleInvalid(InvalidHandoverException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body(HttpStatus.CONFLICT, ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body(HttpStatus.UNAUTHORIZED, ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

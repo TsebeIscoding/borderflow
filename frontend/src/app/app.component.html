@@ -3,9 +3,18 @@
     <span class="bf-header__mark">⛨</span>
     <span class="bf-header__wordmark">BORDERFLOW</span>
   </a>
-  <div class="bf-header__site">
-    <span class="bf-header__site-label">Operating at</span>
-    <span class="bf-header__site-value">{{ siteLabel }}</span>
+  <div class="bf-header__right">
+    <div class="bf-header__site">
+      <span class="bf-header__site-label">Operating at</span>
+      <span class="bf-header__site-value">{{ siteLabel }}</span>
+    </div>
+    @if (auth.isAuthenticated) {
+      <div class="bf-header__user">
+        <span class="bf-header__user-name">{{ auth.session()?.username }}</span>
+        <span class="bf-header__user-role">{{ auth.session()?.role }}</span>
+        <button type="button" class="bf-header__logout" (click)="auth.logout()">Sign out</button>
+      </div>
+    }
   </div>
 </header>
 

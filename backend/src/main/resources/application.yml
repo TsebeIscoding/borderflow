@@ -20,6 +20,21 @@ spring:
 site:
   id: ${SITE_ID:unset}      # depot | border | port | destination
 
+# RSA keypairs are LOCAL DEV ONLY -- checked into
+# src/main/resources/keys/ purely so this project runs out of the box.
+# A real deployment loads these from a secrets manager or a mounted
+# volume, never ships them inside the JAR. See backend/README.md.
+#
+# depotPublicKeyPath is deliberately NOT derived from SITE_ID -- every
+# site trusts the SAME Depot public key to verify cross-site AUDITOR
+# tokens, regardless of which site this instance is.
+borderflow:
+  jwt:
+    site-private-key-path: keys/${SITE_ID:depot}-private.pem
+    site-public-key-path: keys/${SITE_ID:depot}-public.pem
+    depot-public-key-path: keys/depot-public.pem
+    expiration-minutes: 60
+
 management:
   endpoints:
     web:

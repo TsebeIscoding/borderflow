@@ -1,6 +1,7 @@
 package com.borderflow.trip;
 
 import com.borderflow.common.TripNotFoundException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
@@ -13,9 +14,14 @@ import java.util.UUID;
  * the multi-leader design: a site can answer "where is this trip right
  * now" correctly even if it currently has zero connectivity to the site
  * that's physically holding the trip.
+ *
+ * Both OPERATOR and AUDITOR can read -- reading the manifest is exactly
+ * what a cross-site auditor's token exists for. Only HandoverController
+ * is OPERATOR-only.
  */
 @RestController
 @RequestMapping("/api/trips")
+@PreAuthorize("hasAnyRole('OPERATOR', 'AUDITOR')")
 public class TripController {
 
     private final TripMasterRepository tripMasterRepository;
