@@ -1,5 +1,6 @@
 package com.borderflow.auth;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,7 @@ public class JwtKeyProvider {
     private final PublicKey sitePublicKey;
     private final PublicKey depotPublicKey;
 
+    @Autowired
     public JwtKeyProvider(JwtProperties properties) {
         try {
             this.sitePrivateKey = loadPrivateKey(properties.getSitePrivateKeyPath());

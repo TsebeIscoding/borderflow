@@ -24,29 +24,54 @@ whole multi-leader design exists to avoid.
 ```
 src/app/
 ├── core/
-│   ├── models/trip.model.ts       Wire types matching backend DTOs,
+│   ├── auth/                       AuthService (session + token storage),
+│   │                               HTTP interceptor, route guard
+│   ├── models/trip.model.ts        Wire types matching backend DTOs,
 │   │                               plus SITE_ORDER/SITE_LABELS driving
 │   │                               the route rail
-│   └── services/trip.service.ts   All HTTP calls, nothing else
+│   └── services/trip.service.ts    All HTTP calls, nothing else
 ├── shared/
-│   └── route-rail/                The one signature visual element,
+│   └── route-rail/                 The one signature visual element,
 │                                   reused compact (dashboard rows) and
 │                                   full-size (trip detail)
 └── features/
-    ├── dashboard/                 Manifest table — every trip, status,
+    ├── login/                       Sign-in form, posts to /api/auth/login
+    ├── dashboard/                   Manifest table — every trip, status,
     │                               compact route rail, links to detail
     └── trip-detail/                Full route rail + the handover form
 ```
 
+## Authentication
+
+Every route except `/login` is behind `authGuard`, which redirects to
+the login form if there's no stored session. `AuthService` keeps the
+token in `localStorage` (a normal, expected choice for a real deployed
+app like this one — see the class javadoc on `AuthService` for why
+that's different from a claude.ai artifact sandbox, where browser
+storage is off-limits) and an HTTP interceptor
+(`auth.interceptor.ts`) attaches it to every outgoing request except
+the login call itself. A `401` response anywhere forces a logout
+rather than leaving the user stuck on a screen with a token that will
+never start working again on its own.
+
+The frontend never decodes the JWT itself — the `role` shown in the
+header and used to hide/show the handover form comes straight from
+`POST /api/auth/login`'s response body, not from inspecting the
+token. The backend is the only thing that ever actually validates a
+token; see `../backend/README.md`'s Authentication and authorization
+section for the full OPERATOR/AUDITOR trust model.
+
 ## The handover form's rules aren't just UI polish
 
-`TripDetailComponent.canInitiateHandover()` hides the form unless this
-site currently holds the trip and it isn't already `Delivered` — the
-same two rules `HandoverService` enforces server-side (see
-`../backend/README.md`). This is presentation-layer convenience, not a
-security boundary: hiding the form doesn't stop a direct API call, the
-backend re-checks both rules regardless. If the two ever disagree, the
-backend wins and the UI just shows whatever error message comes back.
+`TripDetailComponent.canInitiateHandover()` hides the form unless the
+signed-in user is an OPERATOR, this site currently holds the trip, and
+it isn't already `Delivered` — the same rules `HandoverController` and
+`HandoverService` enforce server-side (see `../backend/README.md`).
+This is presentation-layer convenience, not a security boundary:
+hiding the form doesn't stop a direct API call, the backend re-checks
+everything regardless (`@PreAuthorize` plus the same site/status
+checks). If the two ever disagree, the backend wins and the UI just
+shows whatever error message comes back.
 
 ## Local development
 
@@ -60,6 +85,10 @@ npm install
 npm start          # ng serve, proxies /api to localhost:8080
 ```
 
+You'll land on `/login` first — sign in with one of the demo accounts
+listed in `../backend/README.md` (`operator1` / `ChangeMe123!` works
+at every site).
+
 `environment.ts` is intentionally checked in with real per-site values
 (`siteId`, `siteLabel`) rather than left as a template — swap them
 per site before building that site's bundle, or wire an actual
@@ -67,9 +96,11 @@ per-environment build pipeline later if this grows past four sites.
 
 ## Not yet built
 
-- No auth — matches the backend, which also has no auth yet
-  (`../backend/README.md`). Do not point this at anything but a local
-  dev cluster.
 - No view for Container/Vehicle/Driver/Client fragments — the backend
   only exposes Trip endpoints so far (see root `README.md`'s status
   checklist for what's pending on the schema side).
+- No token refresh — a session simply expires (`expiration-minutes` in
+  the backend's `application.yml`, 60 by default) and the next request
+  gets a 401, which forces a re-login. Fine for a portfolio project,
+  a real deployment would want a refresh flow so an active user isn't
+  interrupted mid-task.

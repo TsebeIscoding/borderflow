@@ -15,12 +15,17 @@ CREATE TABLE app_users (
 
 -- Demo accounts for local dev. CHANGE OR REMOVE before any deployment
 -- beyond a local Minikube demo. Both use password: ChangeMe123!
-INSERT INTO app_users (username, password_hash, role) VALUES (
+--
+-- id is supplied explicitly (not DB-generated) -- see the matching
+-- comment in non-depot/V6__app_users.sql for why.
+INSERT INTO app_users (id, username, password_hash, role) VALUES (
+    '11111111-1111-1111-1111-111111111111',
     'operator1',
     '$2b$10$L4r7FKHHY3cAvS7qLz6Q7.h4Rrzk8T.CBcJuceCxJoO81POFdv5/O',
     'OPERATOR'
 );
-INSERT INTO app_users (username, password_hash, role) VALUES (
+INSERT INTO app_users (id, username, password_hash, role) VALUES (
+    '22222222-2222-2222-2222-222222222222',
     'auditor1',
     '$2b$10$L4r7FKHHY3cAvS7qLz6Q7.h4Rrzk8T.CBcJuceCxJoO81POFdv5/O',
     'AUDITOR'

@@ -115,11 +115,15 @@ of it together.
   (`POST /api/trips/{tripId}/handover`), unit tested
 - ✅ Frontend: manifest dashboard + trip detail with a working
   handover form
+- ✅ Authentication and authorization: RS256 JWTs, two roles
+  (site-local `OPERATOR`, cross-site read-only `AUDITOR` verified
+  offline via Depot's public key), enforced with `@PreAuthorize` on
+  every endpoint, login flow + route guard on the frontend. See
+  `backend/README.md`'s Authentication and authorization section for
+  the full trust model.
 - 🚧 Container / Vehicle / Driver / Client fragments: schema +
   replication wiring generated, **not yet applied or tested on the
-  live cluster**
-- 🚧 JWT auth config not yet implemented — both backend and frontend
-  are currently unauthenticated, local dev cluster only
+  live cluster**, and not yet exposed by the backend or frontend at all
 - ⏳ Neither the backend nor the frontend has actually been compiled
   yet in the environment these docs were written in (no Maven Central
   / npm registry access) — run `mvn clean test` and
@@ -206,13 +210,16 @@ of every test result (including two run manually, not scripted):
 
 ```bash
 cd backend
-mvn clean test          # confirm it compiles and the Handover tests pass
+mvn clean test          # confirm it compiles and all tests pass
 mvn spring-boot:run      # SITE_ID env var selects which site this instance is
 ```
 
 One instance per site in a real run, each with a different `SITE_ID`
-and datasource pointed at that site's own `*-db-0` pod. Details:
-`backend/README.md`.
+and datasource pointed at that site's own `*-db-0` pod. Every endpoint
+except `POST /api/auth/login` requires a valid token — log in first
+with a demo account (`operator1` / `ChangeMe123!` at every site,
+`auditor1` / `ChangeMe123!` at Depot only; see `db/migrations/*/V6`).
+Details on the full auth trust model: `backend/README.md`.
 
 ### 6. Frontend
 
@@ -262,9 +269,18 @@ write-locking on Master fragments — is left to Postgres triggers on
 purpose, because those rules have to hold even for writes the service
 itself never made (ones arriving via replication from another site).
 
-Full version of all of this, plus the auth design (site-local Spring
-Security for operational roles, offline-verifiable RS256 JWT for
-cross-site roles): `docs/design/vertical-fragmentation-design.md`.
+**Why two separate JWT trust boundaries instead of one.** A
+site-local `OPERATOR` token being valid only at its own issuing site
+mirrors the same offline-first principle as everything else here — no
+site depends on another site being reachable to validate someone's
+credentials. The cross-site `AUDITOR` token is the deliberate
+exception: it needs to work everywhere, so it's signed by a single
+trusted issuer (Depot) whose public key every site already has baked
+into its own config, meaning verification never requires a live call
+back to Depot. Implementation and the bug found while building it:
+`backend/README.md`'s Authentication and authorization section.
+
+Full version of all of this: `docs/design/vertical-fragmentation-design.md`.
 
 ---
 
@@ -323,10 +339,12 @@ Full write-up with the exact commands and output at each step:
 
 ## What's not built yet
 
-- **JWT auth config** — the design calls for site-local Spring
-  Security plus offline-verifiable RS256 JWTs for cross-site roles;
-  neither exists yet. Both the backend and frontend are currently
-  fully open. Don't point either at anything but a local dev cluster.
+- **A real secrets pipeline for the JWT keys** — they currently ship
+  as local-dev PEM files inside the built JAR
+  (`backend/src/main/resources/keys/`), fine for running this project
+  out of the box, not fine for anything beyond that.
+- **Token refresh** — a session just expires (60 minutes by default)
+  and the next request gets a 401, forcing a re-login. No refresh flow.
 - **Container / Vehicle / Driver / Client fragments on the live
   cluster** — the schema and replication wiring are written
   (`db/migrations/*/V4*`, `V5`, `infra/k8s/extend-replication-k8s.sh`)

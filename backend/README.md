@@ -29,17 +29,19 @@ What's implemented:
   datasource, and `spring.flyway.enabled: false` since migrations are
   applied via the `db/migrations` + `infra/k8s` flow, not by this
   service on boot)
+- **Authentication and authorization** — `POST /api/auth/login`,
+  RS256 JWTs, and role-based access control on every endpoint. See
+  [Authentication and authorization](#authentication-and-authorization)
+  below for the full trust model.
 
 What's not implemented yet:
 
-- **`config/`** — Spring Security setup. Two auth mechanisms per the
-  design: site-local Spring Security for operational roles (staff at
-  that physical site), and offline-verifiable RS256 JWTs (via
-  `spring-boot-starter-oauth2-resource-server`, already in `pom.xml`)
-  for cross-site roles, so a site can validate a token without needing
-  connectivity back to an auth server. Currently the `/api/trips/**`
-  endpoints are unauthenticated — do not point this at anything but a
-  local dev cluster until that's built.
+- A proper secrets pipeline for the JWT keys — they currently ship as
+  PEM files in `src/main/resources/keys/`, fine for running this
+  project locally, not fine for anything beyond that. See the warning
+  in that section.
+- Container/Vehicle/Driver/Client read or write endpoints — only Trip
+  is exposed so far.
 
 ## The Handover use case, and what it does vs. leaves to the database
 
@@ -69,6 +71,54 @@ arriving via replication from another site's instance):
 `fromSiteId` always comes from this instance's own `site.id` config,
 never from the caller — see `HandoverRequest`'s javadoc.
 
+## Authentication and authorization
+
+Two roles, two trust boundaries, both RS256 JWTs:
+
+- **OPERATOR** — site-local staff. Signed with the issuing site's own
+  private key, and only ever trusted when verified against that SAME
+  site's public key. A Border-issued token means nothing at Port.
+- **AUDITOR** — cross-site, read-only. Signed with **Depot's** private
+  key regardless of which site's `AuthController` issued it in
+  practice (in this deployment, only Depot's `app_users` table has any
+  `AUDITOR` rows — see `db/migrations/depot/V6`). Every site is
+  configured with Depot's public key and can verify one of these
+  tokens completely offline, with no network call back to Depot at
+  request time — that's what makes it a genuinely cross-site
+  credential rather than just "a token Depot happens to have issued."
+
+`POST /api/auth/login` is the only unauthenticated endpoint
+(`SecurityConfig`). Everything else requires a valid `Authorization:
+Bearer <token>` header; `GET /api/trips/**` accepts either role,
+`POST /api/trips/{id}/handover` requires OPERATOR (`@PreAuthorize` on
+each controller — see `HandoverController`, `TripController`).
+
+**How `JwtService.validate()` decides which role to grant** is the
+one piece of this worth reading directly
+(`src/main/java/com/borderflow/auth/JwtService.java`) before trusting
+it: it checks the token's signature against this site's own key AND
+Depot's key independently, then only grants OPERATOR if it verified
+against the local key and AUDITOR if it verified against Depot's key
+— never trusting the token's own `role` claim on its own. A bug in an
+earlier draft of this logic (short-circuiting on whichever key check
+ran first) silently broke Depot's ability to validate its own AUDITOR
+tokens, since Depot's own key and Depot's key are the same key. Fixed,
+and covered by a regression test in `JwtServiceTest`.
+
+**Local dev credentials** (seeded by `db/migrations/*/V6`, change or
+remove before any real deployment):
+
+| Username | Password | Role | Where |
+|---|---|---|---|
+| `operator1` | `ChangeMe123!` | OPERATOR | every site |
+| `auditor1` | `ChangeMe123!` | AUDITOR | Depot only |
+
+**⚠️ The RSA keypairs in `src/main/resources/keys/` are local-dev
+only**, generated once and checked in purely so this project runs out
+of the box without an extra setup step. A real deployment would load
+these from a secrets manager or a mounted volume, never ship them
+inside the built JAR.
+
 ## Why the schema isn't managed by JPA
 
 `spring.jpa.hibernate.ddl-auto` is set to `validate`, not `update` or
@@ -83,8 +133,14 @@ everywhere — defeating the whole point of the `REVOKE` lockdown.
 
 ## Running locally
 
-Not yet wired to a build/run script. Once the `handover` use case
-exists, running one instance per site (four total, each with a
-different `SITE_ID` and datasource pointed at its corresponding
-`*-db-0` pod) is the intended local dev setup — mirroring how they'll
-actually be deployed.
+```bash
+mvn clean test          # confirm it compiles and all tests pass
+mvn spring-boot:run      # reads SITE_ID env var to pick this instance's site
+```
+
+Running the full mesh locally means four instances, one per site, each
+with a different `SITE_ID` and datasource pointed at that site's own
+`*-db-0` pod — mirroring how they'll actually be deployed. Log in via
+`POST /api/auth/login` with one of the demo accounts above before
+calling anything else; every endpoint except `/api/auth/login` itself
+requires a valid token.

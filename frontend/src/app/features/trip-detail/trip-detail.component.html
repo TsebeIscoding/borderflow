@@ -1,10 +1,6 @@
 <a routerLink="/" class="bf-back">← Manifest</a>
 
-@if (loading()) {
-  <p class="bf-hint">Loading trip…</p>
-} @else if (error()) {
-  <div class="bf-panel bf-detail__error">{{ error() }}</div>
-} @else if (trip(); as t) {
+@if (trip(); as t) {
   <div class="bf-eyebrow">Trip {{ t.tripId }}</div>
   <h1>{{ siteLabels[t.originSiteId] ?? t.originSiteId }} → {{ siteLabels[t.destinationSiteId] ?? t.destinationSiteId }}</h1>
 
@@ -75,4 +71,8 @@
       </p>
     }
   </div>
+} @else if (loading()) {
+  <p class="bf-hint">Loading trip…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-detail__error">{{ error() }}</div>
 }

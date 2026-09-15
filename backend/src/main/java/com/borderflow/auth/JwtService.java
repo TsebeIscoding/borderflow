@@ -1,10 +1,8 @@
 package com.borderflow.auth;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.SignatureException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -73,14 +71,6 @@ public class JwtService {
     }
 
     /**
-     * Tries this site's own public key first (the common case: a local
-     * operator logged in here), then falls back to Depot's public key
-     * (a cross-site auditor token). Returns empty if neither key
-     * verifies it, or if it's expired/malformed. Callers should treat
-     * empty exactly like "not authenticated" -- there is deliberately
-     * no partial-trust state.
-     */
-    /**
      * Checks the token's signature against BOTH this site's own public
      * key and Depot's public key independently (not "try local, then
      * fall back to Depot") -- at Depot itself those two keys are the
@@ -132,7 +122,7 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
             return Optional.of(claims);
-        } catch (ExpiredJwtException | SignatureException | JwtException | IllegalArgumentException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }
     }
