@@ -60,3 +60,38 @@ write now fails with `permission denied for table trip_master`; Depot's
 write still succeeds normally. Same pattern applied preemptively to the
 new Master fragments added later (`V5`), rather than discovered as a
 second bug.
+
+## 6. Backend login flow — FOUND BROKEN, FIXED, VERIFIED
+
+First real end-to-end test of the backend (not just unit tests):
+starting the Spring Boot service and calling `POST /api/auth/login`
+against the live cluster. Login failed with a confusing `401 "A valid
+token is required for this request"` — misleading, because the actual
+failure was a `500` from the database that Spring's default error
+handling silently re-routed through `/error`, which then correctly got
+blocked by the security filter chain (since `/error` isn't a permitted
+path), masking the real error behind an unrelated-looking 401.
+
+**Root cause, found in the backend's own log:**
+`org.postgresql.util.PSQLException: ERROR: permission denied for table
+app_users`. `V2`'s `GRANT ... ON ALL TABLES IN SCHEMA public TO
+app_user` is a snapshot grant — it only covers tables that existed at
+the moment `V2` ran. `app_users` didn't exist yet (it's created later,
+in `V6`), so `app_user` never had any privileges on it at all.
+
+**Fix:** added `GRANT SELECT ON app_users TO app_user;` to the end of
+`V6` (both `depot` and `non-depot` variants). `SELECT` only —
+`app_user` never needs to write to its own credentials table, since
+there's no self-registration feature.
+
+**Lesson for the rest of the schema:** any future migration that adds
+a new table **after** `V2` needs either its own explicit `GRANT` (as
+above) or a one-time `ALTER DEFAULT PRIVILEGES` so future tables
+inherit `app_user`'s access automatically — `V4`'s Container/Vehicle/
+Driver/Client fragments already re-grant at the end of that migration
+for exactly this reason; `V6` had simply been missed.
+
+**Re-test:** login succeeded, returned a valid JWT, and the full
+`auth-flow-test.sh` sequence passed end to end, including the
+important one — an `AUDITOR` token correctly receiving `403` on a
+handover attempt while an `OPERATOR` token succeeds.

@@ -18,8 +18,48 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
     }
 
+    @ExceptionHandler(ContainerNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(ContainerNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
+    }
+
+    @ExceptionHandler(VehicleNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(VehicleNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
+    }
+
+    @ExceptionHandler(DriverNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(DriverNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
+    }
+
+    @ExceptionHandler(ClientNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(ClientNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
+    }
+
+    @ExceptionHandler(ConsignmentNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(ConsignmentNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidHandoverException.class)
     public ResponseEntity<Map<String, Object>> handleInvalid(InvalidHandoverException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body(HttpStatus.CONFLICT, ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidContainerMoveException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalid(InvalidContainerMoveException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body(HttpStatus.CONFLICT, ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidVehicleMoveException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalid(InvalidVehicleMoveException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body(HttpStatus.CONFLICT, ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidDriverMoveException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalid(InvalidDriverMoveException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body(HttpStatus.CONFLICT, ex.getMessage()));
     }
 

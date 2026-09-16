@@ -1,75 +1,268 @@
 # BorderFlow
 
-Cross-border container logistics tracking system, built as a portfolio
-project to demonstrate distributed database correctness under failure
-conditions: vertical fragmentation, multi-leader replication with
-per-row ownership handover, and tested failure/recovery behavior on
-real Kubernetes infrastructure — plus a working backend and frontend on
-top of it.
+Cross-border container logistics tracking system. Built to demonstrate
+a specific distributed-systems problem and its solution: how do four
+physically separate sites (a depot, a border post, a port, and a
+destination hub) each keep their own database, accept writes even with
+zero connectivity to the others, and still end up agreeing on the
+truth?
 
-Runs locally via Minikube. Not production-deployed.
+The answer implemented here: **vertical fragmentation** (splitting
+each entity into a rarely-changing "Master" half and a
+constantly-changing "State" half, each replicated differently) plus
+**multi-leader logical replication with Lamport-timestamp conflict
+resolution**. All of it is deployed on real Kubernetes and tested
+against real failure conditions — not just described on paper.
 
----
-
-## Table of contents
-
-1. [Architecture](#architecture)
-2. [Project layout](#project-layout)
-3. [Status](#status)
-4. [Getting started](#getting-started)
-   - [1. Kubernetes cluster](#1-kubernetes-cluster)
-   - [2. Database schema](#2-database-schema)
-   - [3. Replication mesh](#3-replication-mesh)
-   - [4. Verify it works](#4-verify-it-works)
-   - [5. Backend](#5-backend)
-   - [6. Frontend](#6-frontend)
-5. [Design decisions, in depth](#design-decisions-in-depth)
-6. [Bugs found during testing](#bugs-found-during-testing)
-7. [Test results](#test-results)
-8. [What's not built yet](#whats-not-built-yet)
+This README walks through the whole thing from zero: standing up the
+cluster, applying the schema, wiring up replication, and running the
+backend, frontend, and every test — assuming you've never seen this
+project before and nothing is currently running.
 
 ---
 
-## Architecture
+## What you'll end up with
 
-Four operational sites — Depot, Border Post, Port Agent, Destination
-Hub — each run their own local Postgres instance and must accept
-writes with zero connectivity to the others. Each tracked entity
-(Trip, Container, Vehicle, Driver, Client) is **vertically
-fragmented** into:
+Four Postgres instances (one per site) replicating to each other, a
+Spring Boot backend (one instance per site) sitting on top, and an
+Angular frontend talking to it — all running locally via Minikube.
+Not deployed anywhere public; this is a local, from-scratch build.
 
-- a **Master fragment** — static/descriptive columns, written once at
-  an origin site (Depot), replicated read-only everywhere else
-  (single-leader)
-- a **State fragment** — volatile/custody columns, written by
-  whichever site currently holds the item, replicated to every other
-  site (multi-leader, conflict-resolved via Lamport timestamp
-  comparison)
+---
 
-Append-only event logs (`Handover`, `Milestone`, `Incident`,
-`Trip_Container`) are horizontally partitioned by originating site
-instead, since there's nothing to vertically split in an append-only
-row.
+## Prerequisites
 
-One entity, `Client`, has a PII carve-out: `client_contact` exists
-only at Depot and is never replicated to operational sites at all —
-not access-controlled after the fact, structurally absent everywhere
-else.
+Install these before starting:
 
-Two services sit on top of the database, one deployed per site:
+| Tool | Used for | Check with |
+|---|---|---|
+| [Minikube](https://minikube.sigs.k8s.io/) | Local Kubernetes cluster | `minikube version` |
+| `kubectl` | Talking to the cluster | `kubectl version --client` |
+| Docker | Minikube's driver | `docker --version` |
+| `psql` (PostgreSQL client) | Applying migrations, manual queries | `psql --version` (install with `sudo apt install postgresql-client` on Ubuntu/Debian) |
+| Java 21 + Maven | Running the backend | `java -version`, `mvn -version` |
+| Node.js 18.19+ / 20.11+ / 22+ and npm | Running the frontend | `node -v`, `npm -v` |
+| `openssl` | Generating local dev RSA keys (usually preinstalled) | `openssl version` |
 
-- **Backend** (Spring Boot) — reads the local, already-replicated
-  Postgres instance and exposes it over REST; writes go through
-  `HandoverService`, which enforces the two business rules the
-  database can't (a site can only hand off a trip it holds; a
-  `Delivered` trip is terminal).
-- **Frontend** (Angular) — a manifest dashboard and a handover form,
-  each build talking only to its own site's backend. There is no
-  "global" view across sites by design — see
-  [Design decisions](#design-decisions-in-depth).
+---
 
-Full rationale for all of the above:
-`docs/design/vertical-fragmentation-design.md`.
+## Step 1 — Start the cluster
+
+```bash
+minikube start --cni=calico --memory=4096 --cpus=4
+```
+
+Calico can take a few minutes to become healthy the first time (it
+pulls fairly large images) — this is normal, not a hang. Confirm it's
+up before moving on:
+
+```bash
+kubectl get pods -n kube-system | grep calico
+```
+
+Both `calico-node` and `calico-kube-controllers` need to show
+`Running`. If they sit in `Init`/`ContainerCreating` for a long time,
+give it a few more minutes before assuming something's wrong.
+
+---
+
+## Step 2 — Deploy the four sites
+
+**Set a real database password first.** Every site's manifest ships
+with a placeholder — replace it in all four files before applying
+anything:
+
+```bash
+cd borderflow
+sed -i 's/CHANGE_ME_local_dev_only/YOUR_PASSWORD_HERE/' infra/k8s/depot/depot-db.yaml
+sed -i 's/CHANGE_ME_local_dev_only/YOUR_PASSWORD_HERE/' infra/k8s/border/border-db.yaml
+sed -i 's/CHANGE_ME_local_dev_only/YOUR_PASSWORD_HERE/' infra/k8s/port/port-db.yaml
+sed -i 's/CHANGE_ME_local_dev_only/YOUR_PASSWORD_HERE/' infra/k8s/destination/destination-db.yaml
+```
+
+Then deploy:
+
+```bash
+kubectl apply -f infra/k8s/00-namespaces.yaml
+kubectl apply -f infra/k8s/depot/depot-db.yaml
+kubectl apply -f infra/k8s/border/border-db.yaml
+kubectl apply -f infra/k8s/port/port-db.yaml
+kubectl apply -f infra/k8s/destination/destination-db.yaml
+```
+
+Wait until all four are up:
+
+```bash
+kubectl get pods -A | grep -E 'depot|border|port|destination'
+```
+
+All four should show `1/1 Running`. Each site's Postgres container
+runs its own baseline schema automatically on first start (the same
+content as `db/migrations/*/V1`) — you don't need to apply `V1`
+yourself.
+
+---
+
+## Step 3 — Apply the rest of the schema
+
+Migrations are split into `db/migrations/depot/` (Depot only — it's
+the sole site allowed to write Master fragments, and the only one with
+the PII table) and `db/migrations/non-depot/` (Border, Port,
+Destination — identical to each other). Full explanation:
+`db/migrations/README.md`.
+
+```bash
+# Depot
+kubectl exec -i -n depot depot-db-0 -- psql -U postgres -d borderflow -v ON_ERROR_STOP=1 < db/migrations/depot/V2__app_user_least_privilege.sql
+kubectl exec -i -n depot depot-db-0 -- psql -U postgres -d borderflow -v ON_ERROR_STOP=1 < db/migrations/depot/V4__container_vehicle_driver_client_fragments.sql
+kubectl exec -i -n depot depot-db-0 -- psql -U postgres -d borderflow -v ON_ERROR_STOP=1 < db/migrations/depot/V6__app_users.sql
+
+# Border, Port, Destination
+for site in border port destination; do
+  kubectl exec -i -n $site ${site}-db-0 -- psql -U postgres -d borderflow -v ON_ERROR_STOP=1 < db/migrations/non-depot/V2__app_user_least_privilege.sql
+  kubectl exec -i -n $site ${site}-db-0 -- psql -U postgres -d borderflow -v ON_ERROR_STOP=1 < db/migrations/non-depot/V3__enforce_trip_master_single_leader.sql
+  kubectl exec -i -n $site ${site}-db-0 -- psql -U postgres -d borderflow -v ON_ERROR_STOP=1 < db/migrations/non-depot/V4__container_vehicle_driver_client_fragments.sql
+  kubectl exec -i -n $site ${site}-db-0 -- psql -U postgres -d borderflow -v ON_ERROR_STOP=1 < db/migrations/non-depot/V5__lock_new_master_fragments.sql
+  kubectl exec -i -n $site ${site}-db-0 -- psql -U postgres -d borderflow -v ON_ERROR_STOP=1 < db/migrations/non-depot/V6__app_users.sql
+done
+```
+
+This creates the `app_user` least-privilege role (password:
+`change_me_later` — change it in `V2` if you want something else
+before running this), the Container/Vehicle/Driver/Client schema, and
+the `app_users` table that backs login (seeded with a demo `operator1`
+account everywhere and a demo `auditor1` account at Depot only —
+both use password `ChangeMe123!`).
+
+---
+
+## Step 4 — Wire up replication
+
+```bash
+export DEPOT_DB_PASSWORD=YOUR_PASSWORD_HERE
+export BORDER_DB_PASSWORD=YOUR_PASSWORD_HERE
+export PORT_DB_PASSWORD=YOUR_PASSWORD_HERE
+export DESTINATION_DB_PASSWORD=YOUR_PASSWORD_HERE
+
+cd infra/k8s
+./setup-replication-k8s.sh
+```
+
+Must end with all subscriptions confirmed enabled on all 4 sites. Then
+wire up the Container/Vehicle/Driver/Client tables too:
+
+```bash
+./extend-replication-k8s.sh
+```
+
+Must end with `ALL SUBSCRIPTIONS CONFIRMED ENABLED AFTER SCHEMA EXTENSION`.
+
+---
+
+## Step 5 — Run the database-level tests
+
+```bash
+cd ../../scripts
+./corridor-test.sh              # seeds a trip, walks it through all 4 sites, confirms convergence
+./failure-recovery-test.sh       # kills a pod, confirms it catches back up via replication
+./conflict-resolution-test.sh    # forces a conflicting write, confirms it's correctly rejected
+./container-test.sh              # same corridor-style proof, for the Container fragment
+```
+
+If a script fails because leftover data exists from a previous run
+(e.g. after redeploying the cluster), clean it up first:
+
+```bash
+./reset-test-data.sh
+```
+
+What each script actually proves, and how to read the output, is
+explained in `scripts/README.md`.
+
+---
+
+## Step 6 — Run the backend
+
+You need a way for your machine to reach Depot's database. In a
+**separate terminal**, left running the whole time:
+
+```bash
+kubectl port-forward -n depot depot-db-0 5432:5432
+```
+
+If this fails to bind or the backend can't authenticate afterward,
+something else on your machine is probably already using port 5432
+(commonly a local Postgres install) — check with
+`sudo ss -tlnp | grep 5432` and stop whatever's listed there besides
+`kubectl`, or forward to a different local port instead
+(`5433:5432`) and point the backend at that port via
+`SPRING_DATASOURCE_URL` instead.
+
+In another terminal:
+
+```bash
+cd backend
+mvn clean test          # confirms it compiles and all tests pass
+export SITE_ID=depot
+export DB_APP_USER_PASSWORD=change_me_later
+mvn spring-boot:run
+```
+
+Leave this running. Confirm it's actually working with a login call in
+a third terminal:
+
+```bash
+curl -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"username":"operator1","password":"ChangeMe123!"}'
+```
+
+Should return a JSON body with a `token` field. If instead you see
+`permission denied` in the backend's logs, or a `401` here, see
+`backend/README.md`'s Authentication and authorization section.
+
+Then run the full auth flow test:
+
+```bash
+cd ../scripts
+./auth-flow-test.sh 33333333-3333-3333-3333-333333333333
+```
+
+(Use whatever trip ID `corridor-test.sh` actually seeded, if you
+changed it.) All 8 checks should pass — the important one is step 7:
+an `AUDITOR` token must get `403` trying to hand off a trip.
+
+To run a second site's backend instance alongside this one (to test
+that an `OPERATOR` token from one site is rejected at another), repeat
+Step 6 in new terminals with a different `SITE_ID`
+(`border`/`port`/`destination`), a port-forward to that site's pod
+instead, and a different local HTTP port
+(`export SERVER_PORT=8081`) so it doesn't collide with Depot's
+instance.
+
+---
+
+## Step 7 — Run the frontend
+
+In a fourth terminal:
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+The first `npm install` can take several minutes depending on your
+connection — let it finish rather than interrupting it, an interrupted
+install can leave a corrupted `node_modules` that needs
+`rm -rf node_modules package-lock.json && npm cache clean --force`
+before retrying.
+
+Once it says `Application bundle generation complete`, open
+`http://localhost:4200` in a browser. You should land on `/login`.
+Sign in with `operator1` / `ChangeMe123!`, and you should see the
+manifest dashboard with whatever trips `corridor-test.sh` seeded.
+Click into one to see the route rail and, if this site currently holds
+that trip, a working handover form. Use the **Containers** link in the
+header for the equivalent view of whatever `container-test.sh` seeded.
 
 ---
 
@@ -78,282 +271,100 @@ Full rationale for all of the above:
 ```
 borderflow/
 ├── docs/
-│   ├── design/                Full architecture + fragmentation rationale
-│   └── testing/                Bugs found, fixes applied, test results
-├── infra/
-│   └── k8s/                    Kubernetes manifests — one StatefulSet per
-│                                site, replication mesh setup scripts
-├── db/
-│   └── migrations/              Flyway-style migration history, split into
-│                                depot/ and non-depot/
-├── backend/                     Spring Boot — one instance per site, Trip
-│                                read endpoints + the Handover use case
-├── frontend/                     Angular — one build per site, manifest
-│                                dashboard + handover form
-└── scripts/                     Reproducible test scripts for the corridor,
-                                 failure-recovery, and conflict-resolution
-                                 tests
+│   ├── design/       Full architecture rationale
+│   └── testing/       Bugs found, fixes applied, full test results
+├── infra/k8s/         Kubernetes manifests, one StatefulSet per site,
+│                      replication setup scripts
+├── db/migrations/      Versioned schema, split into depot/ and
+│                      non-depot/ (see db/migrations/README.md for why)
+├── backend/            Spring Boot, one instance per site
+├── frontend/           Angular, one build per site
+└── scripts/            The test scripts used in Step 5 and Step 6
 ```
 
-Every folder above also has its own `README.md` with more detail
-specific to that layer; this file is the single place that pulls all
-of it together.
+Every folder above has its own `README.md` with more detail specific
+to that layer.
 
 ---
 
-## Status
+## Architecture, in brief
 
-- ✅ Design finalized and documented
-- ✅ 4 replication bugs found, diagnosed, and fixed
-- ✅ Deployed and tested on real Kubernetes (Minikube): corridor
-  replication, pod-deletion failure/recovery, concurrent-write
-  conflict resolution, duplicate-event idempotency, single-leader
-  enforcement on Master fragments (found broken during testing, fixed,
-  re-verified)
-- ✅ Backend: Trip read endpoints (`GET /api/trips`,
-  `GET /api/trips/{id}`) and the `Handover` use case
-  (`POST /api/trips/{tripId}/handover`), unit tested
-- ✅ Frontend: manifest dashboard + trip detail with a working
-  handover form
-- ✅ Authentication and authorization: RS256 JWTs, two roles
-  (site-local `OPERATOR`, cross-site read-only `AUDITOR` verified
-  offline via Depot's public key), enforced with `@PreAuthorize` on
-  every endpoint, login flow + route guard on the frontend. See
-  `backend/README.md`'s Authentication and authorization section for
-  the full trust model.
-- 🚧 Container / Vehicle / Driver / Client fragments: schema +
-  replication wiring generated, **not yet applied or tested on the
-  live cluster**, and not yet exposed by the backend or frontend at all
-- ⏳ Neither the backend nor the frontend has actually been compiled
-  yet in the environment these docs were written in (no Maven Central
-  / npm registry access) — run `mvn clean test` and
-  `npm install && ng build` yourself before trusting either
+Each tracked entity (Trip, Container, Vehicle, Driver, Client) is
+split into:
 
----
+- a **Master fragment** — static columns, written once at Depot,
+  replicated read-only everywhere else
+- a **State fragment** — volatile custody columns, written by whichever
+  site currently holds the item, replicated to every other site and
+  conflict-resolved by comparing Lamport timestamps if two sites ever
+  write concurrently
 
-## Getting started
+Append-only event logs (`Handover`, `Milestone`, `Incident`,
+`Trip_Container`) are horizontally partitioned by originating site
+instead. One entity, `Client`, has a PII carve-out: `client_contact`
+exists only at Depot and is never replicated anywhere else — not
+access-controlled after the fact, structurally absent everywhere else.
 
-Run these in order — each step depends on the one before it.
+Auth: two JWT roles. `OPERATOR` tokens are site-local — signed and
+only ever trusted at the site that issued them. `AUDITOR` tokens are
+cross-site and read-only — issued only at Depot, verified offline by
+every other site using Depot's public key, no live call back to Depot
+required. Full detail: `backend/README.md`.
 
-### 1. Kubernetes cluster
-
-```bash
-minikube start --cni=calico --memory=4096 --cpus=4
-kubectl get pods -n kube-system | grep calico   # both calico-node and
-                                                  # calico-kube-controllers
-                                                  # must show Running
-```
-
-If Calico sits on `ContainerCreating`/`Init` for a while, it's almost
-always a slow image pull from `quay.io`, not a real config problem —
-give it a few minutes.
-
-**Set real Postgres passwords before deploying.** Each site's Secret
-manifest (`infra/k8s/<site>/<site>-db.yaml`) ships with a placeholder
-password — replace it in all four files.
-
-```bash
-kubectl apply -f infra/k8s/00-namespaces.yaml
-kubectl apply -f infra/k8s/depot/depot-db.yaml
-kubectl apply -f infra/k8s/border/border-db.yaml
-kubectl apply -f infra/k8s/port/port-db.yaml
-kubectl apply -f infra/k8s/destination/destination-db.yaml
-
-# Confirm all four are Running (only the LAST -n flag is respected by
-# kubectl, so check all namespaces at once like this, not with
-# multiple -n flags):
-kubectl get pods -A | grep -E 'depot|border|port|destination'
-```
-
-### 2. Database schema
-
-Schema is versioned in `db/migrations/`, split into `depot/` (run at
-Depot only — it's the only site with write access to Master fragments
-and the only one that gets the PII table) and `non-depot/` (run
-identically at Border, Port, Destination). Applied via
-`kubectl exec ... psql < V*.sql`, in version order, against each
-site's pod. Full explanation and the exact migration history:
-`db/migrations/README.md`.
-
-### 3. Replication mesh
-
-```bash
-cd infra/k8s
-chmod +x setup-replication-k8s.sh
-./setup-replication-k8s.sh
-# Must end with: ALL SUBSCRIPTIONS CONFIRMED ENABLED ON ALL 4 SITES
-```
-
-If you've also applied the V4+ Container/Vehicle/Driver/Client
-migrations:
-
-```bash
-chmod +x extend-replication-k8s.sh
-./extend-replication-k8s.sh
-# Must end with: ALL SUBSCRIPTIONS CONFIRMED ENABLED AFTER SCHEMA EXTENSION
-```
-
-### 4. Verify it works
-
-```bash
-cd scripts
-./corridor-test.sh              # seeds a trip, walks it through all 4 sites
-./failure-recovery-test.sh       # kills a pod, confirms it catches back up
-./conflict-resolution-test.sh    # forces a stale write, confirms it's rejected
-```
-
-Details on what each script proves: `scripts/README.md`. Full write-up
-of every test result (including two run manually, not scripted):
-`docs/testing/test-results.md`.
-
-### 5. Backend
-
-```bash
-cd backend
-mvn clean test          # confirm it compiles and all tests pass
-mvn spring-boot:run      # SITE_ID env var selects which site this instance is
-```
-
-One instance per site in a real run, each with a different `SITE_ID`
-and datasource pointed at that site's own `*-db-0` pod. Every endpoint
-except `POST /api/auth/login` requires a valid token — log in first
-with a demo account (`operator1` / `ChangeMe123!` at every site,
-`auditor1` / `ChangeMe123!` at Depot only; see `db/migrations/*/V6`).
-Details on the full auth trust model: `backend/README.md`.
-
-### 6. Frontend
-
-```bash
-cd frontend
-npm install
-npm start                # ng serve, proxies /api to localhost:8080
-```
-
-Requires the matching backend instance running first, with its
-`SITE_ID` matching `environment.ts`'s `siteId` — otherwise the
-handover form will never think this site holds any trip. Details:
-`frontend/README.md`.
+Full rationale for all of the above:
+`docs/design/vertical-fragmentation-design.md`.
 
 ---
 
-## Design decisions, in depth
+## Current status
 
-**Why vertical fragmentation, not just "one big table per site."**
-Master data (who's the driver, what's the container's size) and state
-data (where is it right now) have completely different write
-patterns — one is set once and barely changes, the other changes
-constantly and needs to be writable from wherever the item physically
-is. Splitting them lets each half use the replication strategy that
-actually fits it, instead of forcing one compromise strategy onto
-everything.
+- ✅ Trip: schema, replication, backend (`Handover` use case), and
+  frontend all built, deployed, and tested end to end
+- ✅ Container: schema, replication, backend, and frontend all built,
+  deployed, and tested end to end — same rigor as Trip, with two
+  documented simplifications (no "Delivered" terminal status, no
+  matching event-log row — see `backend/README.md`)
+- 🚧 Vehicle / Driver: schema and backend built (read + relocate,
+  same pattern as Container), unit tested — **not yet applied against
+  live data or tested end to end, no frontend view**
+- 🚧 Client / Consignment: schema and backend built (read-only, no
+  relocation concept) — **not yet tested end to end, no frontend
+  view**. `client_contact` (PII) deliberately has no entity, endpoint,
+  or any code path anywhere in this project — see `ClientCore`'s class
+  javadoc in the backend.
+- ✅ Authentication: fully built and verified — login, both roles,
+  cross-site trust, RBAC enforcement, all tested against the live
+  cluster
+- ❌ No secrets pipeline for the JWT keys (local-dev PEM files only),
+  no token refresh
 
-**Why the PII table has no counterpart at other sites, instead of
-being access-controlled.** Even a perfectly enforced permission can be
-misconfigured later. Not creating the table at all removes the
-possibility entirely, rather than relying on someone remembering to
-lock it down correctly forever.
-
-**Why there's no cross-site "global" view in the frontend.** Every
-site's frontend only talks to that site's own backend, which only
-reads from that site's own local Postgres — already complete thanks to
-replication, no cross-site call needed. Building a "see every site at
-once" screen would mean picking one site to be a dependency for
-everyone else's dashboard, which is exactly the single point of
-failure the whole multi-leader design exists to avoid.
-
-**Why `HandoverService` is so thin.** It only enforces what the
-database structurally can't: same-request rules like "this site
-doesn't hold this trip" or "this trip is already done." Everything
-else — event idempotency, concurrent-write conflict resolution,
-write-locking on Master fragments — is left to Postgres triggers on
-purpose, because those rules have to hold even for writes the service
-itself never made (ones arriving via replication from another site).
-
-**Why two separate JWT trust boundaries instead of one.** A
-site-local `OPERATOR` token being valid only at its own issuing site
-mirrors the same offline-first principle as everything else here — no
-site depends on another site being reachable to validate someone's
-credentials. The cross-site `AUDITOR` token is the deliberate
-exception: it needs to work everywhere, so it's signed by a single
-trusted issuer (Depot) whose public key every site already has baked
-into its own config, meaning verification never requires a live call
-back to Depot. Implementation and the bug found while building it:
-`backend/README.md`'s Authentication and authorization section.
-
-Full version of all of this: `docs/design/vertical-fragmentation-design.md`.
+Full test results, including every bug found and fixed while building
+this: `docs/testing/test-results.md`.
 
 ---
 
-## Bugs found during testing
+## Troubleshooting
 
-Four replication bugs, each diagnosed from Postgres logs and fixed
-permanently rather than worked around:
+A few things that came up repeatedly while building and testing this
+project, in case they come up for you too:
 
-1. **Logical replication apply workers run with an empty
-   `search_path`.** Trigger functions with unqualified table names
-   worked locally but failed under replication. Fixed with
-   `ALTER FUNCTION ... SET search_path = public` plus
-   `ENABLE ALWAYS TRIGGER`.
-2. **Subscription `DISABLE`/`ENABLE` needs independent verification**
-   on both the publisher and subscriber side — `subenabled = t` has to
-   be checked on both ends, not assumed.
-3. **Subscription names must encode both publisher and subscriber**,
-   or replication slot names collide once more than one subscriber
-   connects to the same publisher.
-4. **Default `max_logical_replication_workers` (4) is too low** for a
-   full 4-site mesh where every site subscribes to every other site.
-   Raised to 20.
-
-Plus one real bug found via testing rather than code review — the
-Master-fragment single-leader enforcement gap (see next section).
-
-Full detail: `docs/testing/replication-bugs-found.md`.
-
----
-
-## Test results
-
-| # | Test | Result |
-|---|---|---|
-| 1 | Full corridor replication (Depot → Border → Port → Destination) | ✅ Pass |
-| 2 | Pod-deletion failure/recovery | ✅ Pass |
-| 3 | Concurrent-write conflict resolution (Lamport rejection) | ✅ Pass |
-| 4 | Duplicate-event idempotency | ✅ Pass |
-| 5 | Master-fragment single-leader enforcement | ⚠️ Found broken → ✅ Fixed and re-verified |
-
-**#5 is the most interesting one.** A non-origin site (Border) was
-able to locally `UPDATE trip_master`, and the write silently never
-replicated anywhere — permanent, undetected divergence, since Master
-fragments have no conflict-resolution trigger the way State fragments
-do. Root cause: the cluster only had the `postgres` superuser
-available, which bypasses every privilege check, so a `REVOKE` had
-nothing to actually restrict. Fixed by creating a least-privilege
-`app_user` role and revoking write access to Master fragments from it
-at every non-origin site; re-tested connecting as `app_user` instead
-of `postgres` to confirm the fix actually holds.
-
-Full write-up with the exact commands and output at each step:
-`docs/testing/test-results.md`.
-
----
-
-## What's not built yet
-
-- **A real secrets pipeline for the JWT keys** — they currently ship
-  as local-dev PEM files inside the built JAR
-  (`backend/src/main/resources/keys/`), fine for running this project
-  out of the box, not fine for anything beyond that.
-- **Token refresh** — a session just expires (60 minutes by default)
-  and the next request gets a 401, forcing a re-login. No refresh flow.
-- **Container / Vehicle / Driver / Client fragments on the live
-  cluster** — the schema and replication wiring are written
-  (`db/migrations/*/V4*`, `V5`, `infra/k8s/extend-replication-k8s.sh`)
-  but never applied or tested against the running Minikube cluster.
-  The same 5-test pattern used for Trip should be repeated once they
-  are.
-- **Read endpoints/UI for anything other than Trip** — the backend and
-  frontend both only know about trips right now.
-- **Confirmed build** — `mvn clean test` (backend) and
-  `npm install && ng build` (frontend) haven't actually been run in
-  the environment these docs were written in. Do that before trusting
-  either as working code.
+- **`kubectl` says "no route to host"** — Minikube's VM/container
+  likely stopped (e.g. after a reboot). Run `minikube start` again;
+  it restarts the existing cluster without wiping data, but see the
+  next point.
+- **Namespaces are gone / pods from a previous session are missing**
+  — if the cluster was fully deleted and recreated rather than just
+  restarted, you're starting from Step 2 again with an empty cluster.
+  `kubectl get namespaces` will tell you whether `depot`/`border`/
+  `port`/`destination` still exist.
+- **Backend can't authenticate to Postgres despite a correct
+  password** — check for a local Postgres install competing for port
+  5432 (`sudo ss -tlnp | grep 5432`); see Step 6.
+- **A test script shows `0 rows` everywhere except one site** —
+  replication isn't actually wired up yet; re-run Step 4.
+- **A test script fails with a duplicate-key error** — leftover data
+  from a previous run; run `scripts/reset-test-data.sh`.
+- **Backend fails with "Port 8080 was already in use"** — an earlier
+  `mvn spring-boot:run` didn't fully exit (common after Ctrl+C during
+  a failed startup). Find and stop it: `sudo ss -tlnp | grep 8080`,
+  then `kill <PID>` shown there, before retrying.

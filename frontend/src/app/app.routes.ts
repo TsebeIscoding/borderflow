@@ -17,5 +17,17 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/trip-detail/trip-detail.component').then((m) => m.TripDetailComponent),
   },
+  {
+    path: 'containers',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/container-dashboard/container-dashboard.component').then((m) => m.ContainerDashboardComponent),
+  },
+  {
+    path: 'containers/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/container-detail/container-detail.component').then((m) => m.ContainerDetailComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

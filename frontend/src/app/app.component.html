@@ -3,6 +3,12 @@
     <span class="bf-header__mark">⛨</span>
     <span class="bf-header__wordmark">BORDERFLOW</span>
   </a>
+  @if (auth.isAuthenticated) {
+    <nav class="bf-header__nav">
+      <a routerLink="/" routerLinkActive="bf-header__nav-link--active" [routerLinkActiveOptions]="{ exact: true }" class="bf-header__nav-link">Trips</a>
+      <a routerLink="/containers" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Containers</a>
+    </nav>
+  }
   <div class="bf-header__right">
     <div class="bf-header__site">
       <span class="bf-header__site-label">Operating at</span>

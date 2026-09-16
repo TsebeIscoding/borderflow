@@ -51,6 +51,22 @@ non-deterministic, which needed fixing in the test itself.
 
 Requires `corridor-test.sh` to have been run first.
 
+## `container-test.sh`
+
+Same shape as `corridor-test.sh`, but for the Container fragment
+(`container_master`/`container_state`, added in `V4`/`V5`). Seeds a
+client, consignment, and container at Depot, relocates it through
+Border then Port, and confirms convergence across all 4 sites.
+
+Polls for actual replication before each relocation step (see
+`conflict-resolution-test.sh`'s comment for why that matters) rather
+than assuming instant propagation. Requires `V4`/`V5` and
+`extend-replication-k8s.sh` to have been run first.
+
+No "Delivered" terminal status check here, unlike the Trip test --
+every relocation converges on `Arrived`. See
+`ContainerRelocationService`'s class javadoc in the backend for why.
+
 ## `reset-test-data.sh`
 
 Deletes the fixed trip ID every other script here uses, across all

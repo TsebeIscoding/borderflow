@@ -95,3 +95,29 @@
 .bf-header__logout:hover {
   color: var(--bf-text);
 }
+
+.bf-header__nav {
+  display: flex;
+  gap: 1.5rem;
+  margin-left: 2rem;
+}
+
+.bf-header__nav-link {
+  font-family: var(--bf-font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--bf-text-muted);
+  padding-bottom: 0.2rem;
+  border-bottom: 2px solid transparent;
+}
+
+.bf-header__nav-link:hover {
+  color: var(--bf-text);
+}
+
+.bf-header__nav-link--active {
+  color: var(--bf-accent);
+  border-bottom-color: var(--bf-accent);
+}

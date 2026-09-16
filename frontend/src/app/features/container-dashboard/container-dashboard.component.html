@@ -1,0 +1,37 @@
+<div class="bf-eyebrow">Active manifest</div>
+<h1>Containers</h1>
+
+@if (loading()) {
+  <p class="bf-dashboard__hint">Loading manifest…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-dashboard__error">
+    <strong>Manifest unavailable.</strong>
+    <span>{{ error() }}</span>
+  </div>
+} @else if (containers().length === 0) {
+  <div class="bf-panel bf-dashboard__empty">
+    <p>No containers on this site's manifest yet.</p>
+    <p class="bf-dashboard__hint">
+      Containers appear here once seeded at Depot and replicated to this site.
+    </p>
+  </div>
+} @else {
+  <div class="bf-panel bf-manifest">
+    <div class="bf-manifest__row bf-manifest__row--head">
+      <span>Container</span>
+      <span>Position</span>
+      <span>Status</span>
+      <span></span>
+    </div>
+    @for (container of containers(); track container.containerId) {
+      <a class="bf-manifest__row" [routerLink]="['/containers', container.containerId]">
+        <span class="bf-manifest__id">{{ container.containerNumber }}</span>
+        <bf-route-rail [currentSiteId]="container.currentSiteId" [delivered]="false" [compact]="true" />
+        <span class="bf-status-chip bf-status-chip--transit">
+          {{ container.status }}
+        </span>
+        <span class="bf-manifest__lamport">ts {{ container.lamportTs }}</span>
+      </a>
+    }
+  </div>
+}

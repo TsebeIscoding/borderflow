@@ -33,6 +33,29 @@ What's implemented:
   RS256 JWTs, and role-based access control on every endpoint. See
   [Authentication and authorization](#authentication-and-authorization)
   below for the full trust model.
+- **Container read + relocate endpoints** — `GET /api/containers`,
+  `GET /api/containers/{id}`, `POST /api/containers/{id}/relocate`.
+  Same shape as Trip's endpoints, same auth rules (OPERATOR or AUDITOR
+  to read, OPERATOR only to write), unit tested in
+  `src/test/java/com/borderflow/container/ContainerRelocationServiceTest.java`,
+  and **fully verified against the live cluster** — see
+  `docs/testing/test-results.md`. Two known simplifications versus
+  Trip, documented in `ContainerRelocationService`'s class javadoc: no
+  terminal "Delivered" status, no matching event-log row.
+- **Vehicle and Driver read + relocate endpoints** —
+  `GET /api/vehicles`, `GET /api/vehicles/{id}`,
+  `POST /api/vehicles/{id}/relocate`, and the equivalent under
+  `/api/drivers`. Identical shape to Container's, unit tested. **Not
+  yet applied against live data or exercised end to end** — same
+  caveat as Container was before its own testing pass.
+- **Client and Consignment read endpoints** — `GET /api/clients`,
+  `GET /api/clients/{id}`, `GET /api/consignments`,
+  `GET /api/consignments/{id}`. Read-only, both roles — there's no
+  relocation concept for either (they're static Master data with no
+  State fragment). **`client_contact` (the PII table) has no entity,
+  repository, or endpoint anywhere in this codebase** — see
+  `ClientCore`'s class javadoc for why that's a deliberate choice, not
+  an oversight.
 
 What's not implemented yet:
 
@@ -40,8 +63,10 @@ What's not implemented yet:
   PEM files in `src/main/resources/keys/`, fine for running this
   project locally, not fine for anything beyond that. See the warning
   in that section.
-- Container/Vehicle/Driver/Client read or write endpoints — only Trip
-  is exposed so far.
+- Any write endpoint for Client/Consignment, or for the PII table.
+- End-to-end testing for Vehicle, Driver, Client, and Consignment —
+  all four are unit tested only so far; none has been run against a
+  live, replicated database the way Trip and Container have.
 
 ## The Handover use case, and what it does vs. leaves to the database
 

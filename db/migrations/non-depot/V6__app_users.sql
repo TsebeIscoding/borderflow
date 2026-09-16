@@ -30,3 +30,12 @@ INSERT INTO app_users (id, username, password_hash, role) VALUES (
     '$2b$10$L4r7FKHHY3cAvS7qLz6Q7.h4Rrzk8T.CBcJuceCxJoO81POFdv5/O',
     'OPERATOR'
 );
+
+-- Bug found via testing: V2's "GRANT ... ON ALL TABLES IN SCHEMA
+-- public" is a snapshot -- it only covers tables that existed at the
+-- moment V2 ran. app_users didn't exist yet (it's created here in V6),
+-- so app_user had no privileges on it at all, and every login attempt
+-- failed with "permission denied for table app_users". SELECT only --
+-- app_user never needs to write to this table, there's no
+-- self-registration feature.
+GRANT SELECT ON app_users TO app_user;

@@ -1,0 +1,65 @@
+<a routerLink="/containers" class="bf-back">← Manifest</a>
+
+@if (container(); as c) {
+  <div class="bf-eyebrow">Container {{ c.containerNumber }}</div>
+  <h1>{{ c.containerNumber }} — {{ c.size }}</h1>
+
+  <div class="bf-panel bf-detail__rail-panel">
+    <bf-route-rail [currentSiteId]="c.currentSiteId" [delivered]="false" />
+    <div class="bf-detail__meta">
+      <span class="bf-status-chip bf-status-chip--transit">{{ c.status }}</span>
+      <span class="bf-detail__lamport">lamport_ts {{ c.lamportTs }}</span>
+    </div>
+  </div>
+
+  <div class="bf-panel bf-detail__form-panel">
+    @if (canInitiateRelocation(c)) {
+      <h2 class="bf-detail__form-title">Relocate container</h2>
+      <p class="bf-hint">
+        This site ({{ siteLabels[thisSiteId] ?? thisSiteId }}) currently holds this container. Confirm the
+        receiving site and who verified the move.
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="submitRelocate()" class="bf-form">
+        <label class="bf-form__field">
+          <span class="bf-form__label">Relocate to</span>
+          <select formControlName="toSiteId" class="bf-form__input">
+            <option value="" disabled>Select receiving site</option>
+            @for (site of destinationOptions(); track site) {
+              <option [value]="site">{{ siteLabels[site] }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="bf-form__field">
+          <span class="bf-form__label">Verified by</span>
+          <input class="bf-form__input" type="text" formControlName="verifiedBy" placeholder="e.g. liaison-01" />
+        </label>
+
+        <button type="submit" class="bf-btn bf-btn--primary" [disabled]="form.invalid || submitting()">
+          {{ submitting() ? 'Recording relocation…' : 'Confirm relocation' }}
+        </button>
+
+        @if (relocateError()) {
+          <p class="bf-form__error">{{ relocateError() }}</p>
+        }
+        @if (relocateSuccess()) {
+          <p class="bf-form__success">{{ relocateSuccess() }}</p>
+        }
+      </form>
+    } @else if (!auth.isOperator) {
+      <p class="bf-hint">
+        Signed in as {{ auth.session()?.role }} — read-only access. Only an OPERATOR can relocate a container.
+      </p>
+    } @else {
+      <p class="bf-hint">
+        This container is currently held at {{ siteLabels[c.currentSiteId] ?? c.currentSiteId }}, not this site
+        ({{ siteLabels[thisSiteId] ?? thisSiteId }}). Only the site currently holding a container can relocate it.
+      </p>
+    }
+  </div>
+} @else if (loading()) {
+  <p class="bf-hint">Loading container…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-detail__error">{{ error() }}</div>
+}

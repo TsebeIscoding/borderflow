@@ -24,22 +24,36 @@ whole multi-leader design exists to avoid.
 ```
 src/app/
 ├── core/
-│   ├── auth/                       AuthService (session + token storage),
-│   │                               HTTP interceptor, route guard
-│   ├── models/trip.model.ts        Wire types matching backend DTOs,
-│   │                               plus SITE_ORDER/SITE_LABELS driving
-│   │                               the route rail
-│   └── services/trip.service.ts    All HTTP calls, nothing else
+│   ├── auth/                        AuthService (session + token storage),
+│   │                                HTTP interceptor, route guard
+│   ├── models/                      Wire types matching backend DTOs
+│   │   ├── trip.model.ts            Also holds SITE_ORDER/SITE_LABELS,
+│   │   │                            shared by both Trip and Container views
+│   │   └── container.model.ts
+│   └── services/                    All HTTP calls, nothing else
+│       ├── trip.service.ts
+│       └── container.service.ts
 ├── shared/
-│   └── route-rail/                 The one signature visual element,
-│                                   reused compact (dashboard rows) and
-│                                   full-size (trip detail)
+│   └── route-rail/                  The one signature visual element,
+│                                    reused compact (dashboard rows) and
+│                                    full-size (detail pages), and reused
+│                                    as-is across both Trip and Container
 └── features/
     ├── login/                       Sign-in form, posts to /api/auth/login
-    ├── dashboard/                   Manifest table — every trip, status,
-    │                               compact route rail, links to detail
-    └── trip-detail/                Full route rail + the handover form
+    ├── dashboard/                   Trip manifest table
+    ├── trip-detail/                 Full route rail + the handover form
+    ├── container-dashboard/          Container manifest table -- same
+    │                                template shape as dashboard/, no
+    │                                "Delivered" status concept (see
+    │                                container.model.ts)
+    └── container-detail/             Full route rail + the relocate
+                                     form -- same shape as trip-detail/,
+                                     styles reused directly from it via
+                                     a relative styleUrl
 ```
+
+Trips and Containers are reachable via the nav links in the header
+(`app.component.html`), shown once signed in.
 
 ## Authentication
 
@@ -96,9 +110,9 @@ per-environment build pipeline later if this grows past four sites.
 
 ## Not yet built
 
-- No view for Container/Vehicle/Driver/Client fragments — the backend
-  only exposes Trip endpoints so far (see root `README.md`'s status
-  checklist for what's pending on the schema side).
+- No view for Vehicle/Driver/Client fragments — no backend endpoints
+  exist for these yet either (see root `README.md`'s status
+  checklist).
 - No token refresh — a session simply expires (`expiration-minutes` in
   the backend's `application.yml`, 60 by default) and the next request
   gets a 401, which forces a re-login. Fine for a portfolio project,
