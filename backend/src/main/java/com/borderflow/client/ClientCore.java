@@ -26,6 +26,11 @@ public class ClientCore {
         // JPA
     }
 
+    public ClientCore(UUID clientId, String name) {
+        this.clientId = clientId;
+        this.name = name;
+    }
+
     public UUID getClientId() {
         return clientId;
     }

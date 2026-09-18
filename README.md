@@ -318,20 +318,29 @@ Full rationale for all of the above:
 
 ## Current status
 
-- ✅ Trip: schema, replication, backend (`Handover` use case), and
-  frontend all built, deployed, and tested end to end
-- ✅ Container: schema, replication, backend, and frontend all built,
-  deployed, and tested end to end — same rigor as Trip, with two
-  documented simplifications (no "Delivered" terminal status, no
-  matching event-log row — see `backend/README.md`)
-- 🚧 Vehicle / Driver: schema and backend built (read + relocate,
-  same pattern as Container), unit tested — **not yet applied against
-  live data or tested end to end, no frontend view**
-- 🚧 Client / Consignment: schema and backend built (read-only, no
-  relocation concept) — **not yet tested end to end, no frontend
-  view**. `client_contact` (PII) deliberately has no entity, endpoint,
-  or any code path anywhere in this project — see `ClientCore`'s class
-  javadoc in the backend.
+- ✅ Trip: schema, replication, and frontend all built, deployed, and
+  tested end to end. Backend now has full CRUD (see
+  `backend/README.md`'s CRUD section for what "full" means given the
+  design's own constraints) — Read and the `Handover` transition were
+  previously verified against the live cluster; **the new Create/Delete
+  endpoints have not been exercised against live data yet.**
+- ✅ Container: schema, replication, and frontend all built, deployed,
+  and tested end to end — same rigor as Trip, with two documented
+  simplifications (no "Delivered" terminal status, no matching
+  event-log row — see `backend/README.md`). Backend now has full CRUD;
+  Read and relocate were previously verified against live data,
+  **Create/Delete are new and not yet exercised against live data.**
+- 🚧 Vehicle / Driver: schema, backend (full CRUD, same pattern as
+  Container), unit tested. Read and relocate were previously verified
+  against the live cluster; **Create/Delete are new and not yet
+  exercised against live data.** **No frontend view yet.**
+- 🚧 Client / Consignment: schema and backend (full CRUD, no
+  relocation concept — they have nothing that changes after creation)
+  built. Read was previously verified against live data;
+  **Create/Delete are new and not yet exercised against live data.**
+  **No frontend view yet.** `client_contact` (PII) deliberately has no
+  entity, endpoint, or any code path anywhere in this project — see
+  `ClientCore`'s class javadoc in the backend.
 - ✅ Authentication: fully built and verified — login, both roles,
   cross-site trust, RBAC enforcement, all tested against the live
   cluster

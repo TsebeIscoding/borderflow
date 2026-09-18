@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/** Same auth shape as VehicleController. */
+/** Driver CRUD. Same auth shape as VehicleController. */
 @RestController
 @RequestMapping("/api/drivers")
 @PreAuthorize("hasAnyRole('OPERATOR', 'AUDITOR')")
@@ -17,15 +17,18 @@ public class DriverController {
     private final DriverProfileRepository driverProfileRepository;
     private final DriverAvailabilityRepository driverAvailabilityRepository;
     private final DriverRelocationService relocationService;
+    private final DriverCreationService creationService;
 
     public DriverController(
             DriverProfileRepository driverProfileRepository,
             DriverAvailabilityRepository driverAvailabilityRepository,
-            DriverRelocationService relocationService
+            DriverRelocationService relocationService,
+            DriverCreationService creationService
     ) {
         this.driverProfileRepository = driverProfileRepository;
         this.driverAvailabilityRepository = driverAvailabilityRepository;
         this.relocationService = relocationService;
+        this.creationService = creationService;
     }
 
     @GetMapping
@@ -54,5 +57,18 @@ public class DriverController {
             @Valid @RequestBody DriverRelocationRequest request
     ) {
         return ResponseEntity.ok(relocationService.relocate(driverId, request));
+    }
+
+    @PreAuthorize("hasRole('OPERATOR')")
+    @PostMapping
+    public ResponseEntity<DriverSummaryResponse> createDriver(@Valid @RequestBody DriverCreateRequest request) {
+        return ResponseEntity.ok(creationService.create(request));
+    }
+
+    @PreAuthorize("hasRole('OPERATOR')")
+    @DeleteMapping("/{driverId}")
+    public ResponseEntity<Void> deleteDriver(@PathVariable UUID driverId) {
+        creationService.delete(driverId);
+        return ResponseEntity.noContent().build();
     }
 }

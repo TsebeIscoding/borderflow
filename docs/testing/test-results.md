@@ -95,3 +95,87 @@ for exactly this reason; `V6` had simply been missed.
 `auth-flow-test.sh` sequence passed end to end, including the
 important one — an `AUDITOR` token correctly receiving `403` on a
 handover attempt while an `OPERATOR` token succeeds.
+
+## 7. Container, Vehicle, Driver, Client, Consignment — full backend verification — PASS
+
+Applied `V4`/`V5` and `extend-replication-k8s.sh` to the live cluster,
+then verified every new entity's backend endpoints against real,
+seeded data (not just unit tests):
+
+- **Container**: `container-test.sh` (DB-level convergence across all
+  4 sites) passed, then `GET /api/containers`, `GET
+  /api/containers/{id}`, and `POST /api/containers/{id}/relocate` all
+  verified over HTTP — including the business-rule rejection (409,
+  wrong site) and AUDITOR correctly blocked (403).
+- **Vehicle**: seeded directly via SQL, then `GET /api/vehicles`,
+  `GET /api/vehicles/{id}`, and `POST /api/vehicles/{id}/relocate`
+  verified — successful relocation (`lamportTs` 1→2), a repeat
+  relocation attempt from the now-wrong site correctly rejected (409),
+  and AUDITOR correctly blocked (403).
+- **Driver**: same sequence as Vehicle, same results.
+- **Client / Consignment**: read-only endpoints verified against the
+  data `container-test.sh` had already seeded (a client and a
+  consignment) — both return correctly, no PII (`client_contact`) is
+  reachable through any endpoint, by design.
+
+One real bug found and fixed along the way, unrelated to any of the
+above: a malformed Javadoc comment in `TripSummaryResponse.java`
+containing the literal sequence `*/` mid-sentence (inside a file path
+reference), which Java's compiler interpreted as the comment's closing
+delimiter — everything after it was parsed as code, causing a
+compile error. The same mistake was repeated in three new Container
+files while writing them and caught by a repo-wide sweep before they
+were ever tested. Also found: a Spring dependency-injection ambiguity
+in `JwtKeyProvider` (two constructors, neither marked `@Autowired`,
+so Spring couldn't tell which one to use) and a multi-catch clause in
+`JwtService` listing a class alongside its own superclass, which Java
+rejects as redundant. All three are one-time mistakes in how the code
+was written, not design flaws — fixed, and confirmed not to recur
+anywhere else in the codebase via repo-wide greps before every
+subsequent package was built.
+
+## 8. Full CRUD across all six entities — FOUND BROKEN (Delete), FIXED, VERIFIED
+
+Manually tested Create and Delete for Trip, Container, Vehicle,
+Driver, Client, and Consignment against the live cluster for the
+first time.
+
+**Create passed cleanly for all six** — including chained creation
+(Client → Consignment referencing it → Container referencing that
+consignment), each returning correct data with the right defaults
+(`AtOrigin`/`Available`, `lamportTs: 1`).
+
+**Delete surfaced a real bug**: deleting a Client that still had a
+Consignment referencing it (via the `consignment.client_id` foreign
+key) should have returned a clean `409` from `EntityInUseException`.
+Instead it returned a confusing `401 "A valid token is required"` —
+misleading in exactly the same way the `app_users` grant bug was
+earlier (see #6): a real server-side failure was getting silently
+rerouted through Spring's `/error` handling, which then correctly
+rejected it as unauthenticated, masking the actual problem.
+
+**Root cause, found in the backend's own log**: the
+`DataIntegrityViolationException` was thrown at the servlet layer,
+**not** inside `ClientCreationService.delete()`'s `try/catch` block.
+`repository.deleteById()` doesn't execute the `DELETE` statement
+immediately — Hibernate defers flushing to the database until the
+transaction commits, which happens *after* the `@Transactional`
+method has already returned. The foreign-key violation only
+surfaced at commit time, outside anywhere our code could catch it,
+so it propagated as an unhandled exception.
+
+**Fix**: call `.flush()` on the repository immediately after
+`deleteById()`, forcing the `DELETE` (and its constraint check) to
+execute right there, inside the `try` block, where it can actually be
+caught. Applied to all six `*CreationService.delete()` methods for
+consistency, even though only `ClientCreationService` currently has a
+real foreign key to violate (`consignment.client_id`) — the other
+five would have the same latent bug the moment any future migration
+adds a constraint referencing them.
+
+**Re-test**: created a fresh Client and a Consignment referencing it,
+attempted to delete the Client — correctly rejected with a clean
+`409` and the expected message. Deleted the Consignment first, then
+the Client — both succeeded (`204`). Delete for Container, Vehicle,
+Driver, Trip, and Consignment (with nothing referencing them) all
+verified working (`204`) earlier in the same session.

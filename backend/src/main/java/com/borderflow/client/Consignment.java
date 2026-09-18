@@ -21,6 +21,12 @@ public class Consignment {
         // JPA
     }
 
+    public Consignment(UUID consignmentId, UUID clientId, String description) {
+        this.consignmentId = consignmentId;
+        this.clientId = clientId;
+        this.description = description;
+    }
+
     public UUID getConsignmentId() {
         return consignmentId;
     }

@@ -23,6 +23,13 @@ public class DriverProfile {
         // JPA
     }
 
+    public DriverProfile(UUID driverId, String name, String licenseNumber, String phone) {
+        this.driverId = driverId;
+        this.name = name;
+        this.licenseNumber = licenseNumber;
+        this.phone = phone;
+    }
+
     public UUID getDriverId() {
         return driverId;
     }

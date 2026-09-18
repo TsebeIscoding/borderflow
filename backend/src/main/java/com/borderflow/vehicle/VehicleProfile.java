@@ -22,6 +22,12 @@ public class VehicleProfile {
         // JPA
     }
 
+    public VehicleProfile(UUID vehicleId, String registrationNumber, BigDecimal capacity) {
+        this.vehicleId = vehicleId;
+        this.registrationNumber = registrationNumber;
+        this.capacity = capacity;
+    }
+
     public UUID getVehicleId() {
         return vehicleId;
     }

@@ -31,6 +31,13 @@ public class ContainerMaster {
         // JPA
     }
 
+    public ContainerMaster(UUID containerId, String containerNumber, UUID consignmentId, String size) {
+        this.containerId = containerId;
+        this.containerNumber = containerNumber;
+        this.consignmentId = consignmentId;
+        this.size = size;
+    }
+
     public UUID getContainerId() {
         return containerId;
     }

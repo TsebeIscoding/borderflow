@@ -9,9 +9,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Read + relocate endpoints for Container, mirroring TripController and
- * HandoverController's auth shape exactly: OPERATOR or AUDITOR can read,
- * only OPERATOR can write.
+ * Container CRUD. Read + relocate endpoints mirror TripController and
+ * HandoverController's auth shape exactly. Create/delete are
+ * origin-only -- see ContainerCreationService and
+ * OriginSiteOnlyException's javadoc.
  */
 @RestController
 @RequestMapping("/api/containers")
@@ -21,15 +22,18 @@ public class ContainerController {
     private final ContainerMasterRepository containerMasterRepository;
     private final ContainerStateRepository containerStateRepository;
     private final ContainerRelocationService relocationService;
+    private final ContainerCreationService creationService;
 
     public ContainerController(
             ContainerMasterRepository containerMasterRepository,
             ContainerStateRepository containerStateRepository,
-            ContainerRelocationService relocationService
+            ContainerRelocationService relocationService,
+            ContainerCreationService creationService
     ) {
         this.containerMasterRepository = containerMasterRepository;
         this.containerStateRepository = containerStateRepository;
         this.relocationService = relocationService;
+        this.creationService = creationService;
     }
 
     @GetMapping
@@ -58,5 +62,18 @@ public class ContainerController {
             @Valid @RequestBody ContainerRelocationRequest request
     ) {
         return ResponseEntity.ok(relocationService.relocate(containerId, request));
+    }
+
+    @PreAuthorize("hasRole('OPERATOR')")
+    @PostMapping
+    public ResponseEntity<ContainerSummaryResponse> createContainer(@Valid @RequestBody ContainerCreateRequest request) {
+        return ResponseEntity.ok(creationService.create(request));
+    }
+
+    @PreAuthorize("hasRole('OPERATOR')")
+    @DeleteMapping("/{containerId}")
+    public ResponseEntity<Void> deleteContainer(@PathVariable UUID containerId) {
+        creationService.delete(containerId);
+        return ResponseEntity.noContent().build();
     }
 }

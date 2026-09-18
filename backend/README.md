@@ -25,6 +25,12 @@ What's implemented:
   `TripState`, and enforces the business rules the database
   deliberately does *not* enforce (see below). Covered by unit tests in
   `src/test/java/com/borderflow/handover/HandoverServiceTest.java`.
+- **Trip create + delete** — `POST /api/trips`,
+  `DELETE /api/trips/{tripId}`. Origin-only (Depot), same enforcement
+  pattern as everywhere else — see the CRUD section below.
+  **Newly added, not yet exercised against live data** — only the
+  read and handover paths above have been verified on the live
+  cluster so far.
 - `application.yml` with per-site config placeholders (`SITE_ID`,
   datasource, and `spring.flyway.enabled: false` since migrations are
   applied via the `db/migrations` + `infra/k8s` flow, not by this
@@ -42,20 +48,30 @@ What's implemented:
   `docs/testing/test-results.md`. Two known simplifications versus
   Trip, documented in `ContainerRelocationService`'s class javadoc: no
   terminal "Delivered" status, no matching event-log row.
+- **Container create + delete** — `POST /api/containers`,
+  `DELETE /api/containers/{containerId}`. Same origin-only pattern as
+  Trip's. **Newly added, not yet exercised against live data.**
 - **Vehicle and Driver read + relocate endpoints** —
   `GET /api/vehicles`, `GET /api/vehicles/{id}`,
   `POST /api/vehicles/{id}/relocate`, and the equivalent under
-  `/api/drivers`. Identical shape to Container's, unit tested. **Not
-  yet applied against live data or exercised end to end** — same
-  caveat as Container was before its own testing pass.
+  `/api/drivers`. Identical shape to Container's, unit tested, and
+  fully verified against live data on the real cluster: list, get,
+  relocate, business-rule rejection (409), and AUDITOR-blocked (403)
+  all confirmed working end to end.
+- **Vehicle and Driver create + delete** — same origin-only pattern.
+  **Newly added, not yet exercised against live data.**
 - **Client and Consignment read endpoints** — `GET /api/clients`,
   `GET /api/clients/{id}`, `GET /api/consignments`,
   `GET /api/consignments/{id}`. Read-only, both roles — there's no
   relocation concept for either (they're static Master data with no
-  State fragment). **`client_contact` (the PII table) has no entity,
-  repository, or endpoint anywhere in this codebase** — see
-  `ClientCore`'s class javadoc for why that's a deliberate choice, not
-  an oversight.
+  State fragment). Verified against live data. **`client_contact`
+  (the PII table) has no entity, repository, or endpoint anywhere in
+  this codebase** — see `ClientCore`'s class javadoc for why that's a
+  deliberate choice, not an oversight.
+- **Client and Consignment create + delete** — same origin-only
+  pattern; deleting a Client with existing Consignments correctly
+  fails (409) rather than raising a raw foreign-key error.
+  **Newly added, not yet exercised against live data.**
 
 What's not implemented yet:
 
@@ -63,10 +79,55 @@ What's not implemented yet:
   PEM files in `src/main/resources/keys/`, fine for running this
   project locally, not fine for anything beyond that. See the warning
   in that section.
-- Any write endpoint for Client/Consignment, or for the PII table.
-- End-to-end testing for Vehicle, Driver, Client, and Consignment —
-  all four are unit tested only so far; none has been run against a
-  live, replicated database the way Trip and Container have.
+- Any endpoint for the PII table (`client_contact`) — see the CRUD
+  section below for why that's permanent, not a "not yet."
+- A frontend view for Vehicle, Driver, Client, or Consignment — the
+  backend for all four is fully built and verified, nothing in the
+  Angular app calls any of it yet.
+
+## CRUD, and how it maps onto the design's actual constraints
+
+Every entity (Trip, Container, Vehicle, Driver, Client, Consignment)
+now has full CRUD, but "full CRUD" here means something more specific
+than four generic endpoints per entity — it means whatever operations
+the design in
+`../docs/design/vertical-fragmentation-design.md` actually permits:
+
+- **Create** — origin-only. Only Depot may create a Master fragment
+  record (`TripCreationService`, `ContainerCreationService`, etc.), the
+  same single-leader rule that already governs everything else about
+  Master fragments. A non-Depot instance gets a clean
+  `OriginSiteOnlyException` (403) before the request ever reaches the
+  database — the database's own `REVOKE` (`db/migrations/non-depot/V3`,
+  `V5`) is the actual enforcement backstop, this is just a cleaner
+  first line, same relationship as every other business rule enforced
+  twice in this codebase (see `HandoverService`'s class javadoc for
+  the same pattern).
+- **Read** — every site, both roles (OPERATOR and AUDITOR). Unchanged
+  from before.
+- **Update** — deliberately does **not** exist as a generic
+  "edit a trip" or "edit a container" endpoint. Master fields are
+  immutable by design once created. What *does* exist is the
+  domain-specific State-fragment transition each entity already had —
+  `HandoverService.handOff` for Trip, `*RelocationService.relocate`
+  for Container/Vehicle/Driver — which **is** the Update operation for
+  the part of each entity that's actually meant to change. Client and
+  Consignment have no State fragment and no such operation, because
+  they have nothing that changes after creation.
+- **Delete** — origin-only, same reasoning as Create. Deleting a
+  Master record removes its State-fragment row first (where one
+  exists), then the Master row itself. A delete blocked by a real
+  foreign key (e.g. deleting a Client that still has Consignments)
+  surfaces as a clean `EntityInUseException` (409) rather than a raw
+  `DataIntegrityViolationException`.
+
+**`client_contact` (PII) is the one deliberate exception to all of
+this.** It has no entity, repository, controller, or any code path
+anywhere in this codebase — not read, not write, regardless of role
+or site. That's not a missing CRUD operation; it's a boundary this
+project has decided never to cross at the application layer at all,
+consistent with the schema-level decision (see the design doc) not to
+even replicate that table to operational sites.
 
 ## The Handover use case, and what it does vs. leaves to the database
 

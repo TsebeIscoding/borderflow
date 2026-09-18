@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/** Same auth shape as ContainerController and TripController -- see either for the reasoning. */
+/** Vehicle CRUD. Same auth shape as ContainerController and TripController -- see either for the reasoning. */
 @RestController
 @RequestMapping("/api/vehicles")
 @PreAuthorize("hasAnyRole('OPERATOR', 'AUDITOR')")
@@ -17,15 +17,18 @@ public class VehicleController {
     private final VehicleProfileRepository vehicleProfileRepository;
     private final VehicleAvailabilityRepository vehicleAvailabilityRepository;
     private final VehicleRelocationService relocationService;
+    private final VehicleCreationService creationService;
 
     public VehicleController(
             VehicleProfileRepository vehicleProfileRepository,
             VehicleAvailabilityRepository vehicleAvailabilityRepository,
-            VehicleRelocationService relocationService
+            VehicleRelocationService relocationService,
+            VehicleCreationService creationService
     ) {
         this.vehicleProfileRepository = vehicleProfileRepository;
         this.vehicleAvailabilityRepository = vehicleAvailabilityRepository;
         this.relocationService = relocationService;
+        this.creationService = creationService;
     }
 
     @GetMapping
@@ -54,5 +57,18 @@ public class VehicleController {
             @Valid @RequestBody VehicleRelocationRequest request
     ) {
         return ResponseEntity.ok(relocationService.relocate(vehicleId, request));
+    }
+
+    @PreAuthorize("hasRole('OPERATOR')")
+    @PostMapping
+    public ResponseEntity<VehicleSummaryResponse> createVehicle(@Valid @RequestBody VehicleCreateRequest request) {
+        return ResponseEntity.ok(creationService.create(request));
+    }
+
+    @PreAuthorize("hasRole('OPERATOR')")
+    @DeleteMapping("/{vehicleId}")
+    public ResponseEntity<Void> deleteVehicle(@PathVariable UUID vehicleId) {
+        creationService.delete(vehicleId);
+        return ResponseEntity.noContent().build();
     }
 }

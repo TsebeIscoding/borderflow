@@ -1,17 +1,21 @@
 package com.borderflow.client;
 
 import com.borderflow.common.ClientNotFoundException;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Read-only, both roles. No write endpoint exists here at all --
- * client_core is only ever written at Depot via the migration seed
- * data in this codebase; nothing here ever creates or edits a client.
- * Adding one would need PII-handling considerations this project
- * hasn't taken on.
+ * Client CRUD, both roles for read, OPERATOR + origin-only for
+ * create/delete (see ClientCreationService). Note this only ever
+ * touches `client_core` (name only) -- `client_contact` (the PII
+ * table) has no entity, repository, endpoint, or any code path
+ * anywhere in this codebase, regardless of role or site. That's not
+ * a gap this controller has; it's a line this project deliberately
+ * never crosses.
  */
 @RestController
 @RequestMapping("/api/clients")
@@ -19,9 +23,11 @@ import java.util.UUID;
 public class ClientController {
 
     private final ClientCoreRepository clientCoreRepository;
+    private final ClientCreationService creationService;
 
-    public ClientController(ClientCoreRepository clientCoreRepository) {
+    public ClientController(ClientCoreRepository clientCoreRepository, ClientCreationService creationService) {
         this.clientCoreRepository = clientCoreRepository;
+        this.creationService = creationService;
     }
 
     @GetMapping
@@ -36,5 +42,18 @@ public class ClientController {
         return clientCoreRepository.findById(clientId)
                 .map(ClientSummaryResponse::from)
                 .orElseThrow(() -> new ClientNotFoundException(clientId));
+    }
+
+    @PreAuthorize("hasRole('OPERATOR')")
+    @PostMapping
+    public ResponseEntity<ClientSummaryResponse> createClient(@Valid @RequestBody ClientCreateRequest request) {
+        return ResponseEntity.ok(creationService.create(request));
+    }
+
+    @PreAuthorize("hasRole('OPERATOR')")
+    @DeleteMapping("/{clientId}")
+    public ResponseEntity<Void> deleteClient(@PathVariable UUID clientId) {
+        creationService.delete(clientId);
+        return ResponseEntity.noContent().build();
     }
 }
