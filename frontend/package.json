@@ -2,7 +2,11 @@
   "name": "borderflow-frontend",
   "version": "0.1.0",
   "scripts": {
-    "start": "ng serve --proxy-config proxy.conf.json",
+    "start": "ng serve",
+    "start:depot": "ng serve",
+    "start:border": "ng serve -c border",
+    "start:port": "ng serve -c port",
+    "start:destination": "ng serve -c destination",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"

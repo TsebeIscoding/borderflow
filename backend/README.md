@@ -221,12 +221,52 @@ everywhere — defeating the whole point of the `REVOKE` lockdown.
 
 ```bash
 mvn clean test          # confirm it compiles and all tests pass
-mvn spring-boot:run      # reads SITE_ID env var to pick this instance's site
+mvn spring-boot:run      # single instance, defaults to Depot -- requires
+                          # SITE_ID=depot to be set if you don't use a
+                          # profile (see below)
 ```
 
-Running the full mesh locally means four instances, one per site, each
-with a different `SITE_ID` and datasource pointed at that site's own
-`*-db-0` pod — mirroring how they'll actually be deployed. Log in via
-`POST /api/auth/login` with one of the demo accounts above before
-calling anything else; every endpoint except `/api/auth/login` itself
+### Running all four sites at once
+
+Each site is a Spring profile
+(`src/main/resources/application-<site>.yml`) that fixes the port
+this instance listens on, which local port its database
+port-forward uses, and `site.id` together, so you don't have to set
+three or four environment variables by hand and keep them consistent
+across four terminals:
+
+| Site | Backend port | DB port-forward |
+|---|---|---|
+| `depot` | 8080 | 5432 |
+| `border` | 8081 | 5433 |
+| `port` | 8082 | 5434 |
+| `destination` | 8083 | 5435 |
+
+**1. Start all four port-forwards together**, in their own terminal:
+```bash
+cd ../scripts
+./port-forward-all-sites.sh
+```
+Leave that running. Ctrl+C there stops all four cleanly.
+
+**2. Start each site's backend**, each in its own terminal:
+```bash
+SPRING_PROFILES_ACTIVE=depot DB_APP_USER_PASSWORD=change_me_later mvn spring-boot:run
+SPRING_PROFILES_ACTIVE=border DB_APP_USER_PASSWORD=change_me_later mvn spring-boot:run
+SPRING_PROFILES_ACTIVE=port DB_APP_USER_PASSWORD=change_me_later mvn spring-boot:run
+SPRING_PROFILES_ACTIVE=destination DB_APP_USER_PASSWORD=change_me_later mvn spring-boot:run
+```
+
+Now all four sites are genuinely running as separate processes, each
+with its own port, its own database connection, and — because
+`JwtService` and every `*CreationService`/`*RelocationService` reads
+`site.id` at runtime — each correctly enforcing its own site's
+business rules with no code changes needed. This is the moment you
+can actually verify things like "an OPERATOR token issued by Border
+is rejected at Port" for real, rather than reasoning about it from
+the code.
+
+Log in via `POST /api/auth/login` (against whichever port that site
+is running on) with one of the demo accounts above before calling
+anything else; every endpoint except `/api/auth/login` itself
 requires a valid token.

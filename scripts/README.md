@@ -67,6 +67,18 @@ No "Delivered" terminal status check here, unlike the Trip test --
 every relocation converges on `Arrived`. See
 `ContainerRelocationService`'s class javadoc in the backend for why.
 
+## `port-forward-all-sites.sh`
+
+Starts all 4 database port-forwards needed to run every site's
+backend simultaneously on one machine (`depot`→5432, `border`→5433,
+`port`→5434, `destination`→5435 — matching the ports each
+`application-<site>.yml` profile expects, see
+`../backend/README.md`). Runs all four in the background of this one
+terminal and cleans them up automatically on Ctrl+C, so you don't
+need four separate terminals just for plumbing. See
+`../backend/README.md`'s "Running all four sites at once" for the
+full multi-site launch sequence this is the first step of.
+
 ## `reset-test-data.sh`
 
 Deletes the fixed trip ID every other script here uses, across all

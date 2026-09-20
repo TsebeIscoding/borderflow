@@ -30,6 +30,21 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "border": {
+              "fileReplacements": [
+                { "replace": "src/environments/environment.ts", "with": "src/environments/environment.border.ts" }
+              ]
+            },
+            "port": {
+              "fileReplacements": [
+                { "replace": "src/environments/environment.ts", "with": "src/environments/environment.port.ts" }
+              ]
+            },
+            "destination": {
+              "fileReplacements": [
+                { "replace": "src/environments/environment.ts", "with": "src/environments/environment.destination.ts" }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -38,7 +53,25 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": { "buildTarget": "borderflow-frontend:build:production" },
-            "development": { "buildTarget": "borderflow-frontend:build:development" }
+            "development": {
+              "buildTarget": "borderflow-frontend:build:development",
+              "proxyConfig": "proxy.conf.json"
+            },
+            "border": {
+              "buildTarget": "borderflow-frontend:build:development,border",
+              "proxyConfig": "proxy.conf.border.json",
+              "port": 4201
+            },
+            "port": {
+              "buildTarget": "borderflow-frontend:build:development,port",
+              "proxyConfig": "proxy.conf.port.json",
+              "port": 4202
+            },
+            "destination": {
+              "buildTarget": "borderflow-frontend:build:development,destination",
+              "proxyConfig": "proxy.conf.destination.json",
+              "port": 4203
+            }
           },
           "defaultConfiguration": "development"
         }

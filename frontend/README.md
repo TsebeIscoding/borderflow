@@ -89,24 +89,38 @@ shows whatever error message comes back.
 
 ## Local development
 
-Requires the corresponding backend instance running on `localhost:8080`
-(`../backend`) and its `SITE_ID` matching `environment.ts`'s `siteId`
-here — otherwise `canInitiateHandover()` will never be true for any
-trip, since it compares against a mismatched site.
-
+**One site:**
 ```bash
 npm install
-npm start          # ng serve, proxies /api to localhost:8080
+npm start          # ng serve, Depot config, proxies /api to localhost:8080
 ```
 
-You'll land on `/login` first — sign in with one of the demo accounts
-listed in `../backend/README.md` (`operator1` / `ChangeMe123!` works
-at every site).
+**All four sites at once**, each in its own terminal (requires all
+four backend instances already running — see
+`../backend/README.md`'s "Running all four sites at once"):
+```bash
+npm run start:depot          # localhost:4200, proxies to backend :8080
+npm run start:border         # localhost:4201, proxies to backend :8081
+npm run start:port           # localhost:4202, proxies to backend :8082
+npm run start:destination    # localhost:4203, proxies to backend :8083
+```
 
-`environment.ts` is intentionally checked in with real per-site values
-(`siteId`, `siteLabel`) rather than left as a template — swap them
-per site before building that site's bundle, or wire an actual
-per-environment build pipeline later if this grows past four sites.
+Each of these is a real Angular build configuration (`angular.json`),
+not a manual file swap — `start:border` builds with
+`environment.border.ts` in place of `environment.ts` via Angular's own
+`fileReplacements` mechanism, proxies through `proxy.conf.border.json`
+to Border's backend port, and serves on its own port so all four can
+run side by side on one machine without colliding. `npm start` /
+`start:depot` are equivalent — Depot is the default, matching
+`environment.ts`'s own values.
+
+You'll land on `/login` first on each — sign in with one of the demo
+accounts listed in `../backend/README.md` (`operator1` /
+`ChangeMe123!` works at every site). With all four running, this is
+where you can actually watch a trip move — hand it off from Depot's
+tab, then refresh Border's tab and see it arrive, propagated purely
+through Postgres logical replication, not through anything the
+frontend or backend did to "sync" the two sites.
 
 ## Not yet built
 

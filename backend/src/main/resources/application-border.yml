@@ -1,0 +1,11 @@
+# Border profile. Port-forward Border's pod to local 5433 before
+# running this: kubectl port-forward -n border border-db-0 5433:5432
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/borderflow
+
+site:
+  id: border

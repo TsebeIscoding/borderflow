@@ -1,6 +1,12 @@
-# Per-site config. In deployment, SITE_ID and the datasource URL are
-# injected per Kubernetes namespace (see ../../infra/k8s/<site>/*.yaml) --
-# this file holds only the defaults shared across all four sites.
+# Shared defaults across all four sites. Site-specific values (which
+# port this instance listens on, which local port its database
+# port-forward uses, and site.id) live in application-<site>.yml --
+# activate one with --spring.profiles.active=<site> or
+# SPRING_PROFILES_ACTIVE=<site>. Running with no profile at all still
+# works exactly as before (defaults to Depot's port/DB, requires
+# SITE_ID to be set manually) -- the profiles exist to make running
+# all four sites at once on one machine reliable, not to replace the
+# old single-instance flow.
 
 spring:
   application:
@@ -30,8 +36,8 @@ site:
 # tokens, regardless of which site this instance is.
 borderflow:
   jwt:
-    site-private-key-path: keys/${SITE_ID:depot}-private.pem
-    site-public-key-path: keys/${SITE_ID:depot}-public.pem
+    site-private-key-path: keys/${site.id}-private.pem
+    site-public-key-path: keys/${site.id}-public.pem
     depot-public-key-path: keys/depot-public.pem
     expiration-minutes: 60
 

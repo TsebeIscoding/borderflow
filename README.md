@@ -194,11 +194,10 @@ If this fails to bind or the backend can't authenticate afterward,
 something else on your machine is probably already using port 5432
 (commonly a local Postgres install) — check with
 `sudo ss -tlnp | grep 5432` and stop whatever's listed there besides
-`kubectl`, or forward to a different local port instead
-(`5433:5432`) and point the backend at that port via
-`SPRING_DATASOURCE_URL` instead.
+`kubectl`.
 
-In another terminal:
+**Running one site (Depot) is enough to follow the rest of this
+README.** In another terminal:
 
 ```bash
 cd backend
@@ -230,13 +229,29 @@ cd ../scripts
 changed it.) All 8 checks should pass — the important one is step 7:
 an `AUDITOR` token must get `403` trying to hand off a trip.
 
-To run a second site's backend instance alongside this one (to test
-that an `OPERATOR` token from one site is rejected at another), repeat
-Step 6 in new terminals with a different `SITE_ID`
-(`border`/`port`/`destination`), a port-forward to that site's pod
-instead, and a different local HTTP port
-(`export SERVER_PORT=8081`) so it doesn't collide with Depot's
-instance.
+**Running all four sites at once** — this is where you can watch the
+distributed system actually behave like one: a trip handed off at
+Depot's instance shows up at Border's instance a moment later, purely
+through Postgres replication, with zero communication between the two
+backend processes themselves. Each site is a proper Spring profile
+(`application-<site>.yml`), not a manual environment-variable juggle:
+
+```bash
+cd scripts
+./port-forward-all-sites.sh   # one terminal, starts all 4 DB port-forwards
+```
+
+Then, each in its own terminal:
+```bash
+cd backend
+SPRING_PROFILES_ACTIVE=depot DB_APP_USER_PASSWORD=change_me_later mvn spring-boot:run
+SPRING_PROFILES_ACTIVE=border DB_APP_USER_PASSWORD=change_me_later mvn spring-boot:run
+SPRING_PROFILES_ACTIVE=port DB_APP_USER_PASSWORD=change_me_later mvn spring-boot:run
+SPRING_PROFILES_ACTIVE=destination DB_APP_USER_PASSWORD=change_me_later mvn spring-boot:run
+```
+
+Full detail, including the port mapping each profile uses:
+`backend/README.md`'s "Running all four sites at once".
 
 ---
 
@@ -263,6 +278,15 @@ manifest dashboard with whatever trips `corridor-test.sh` seeded.
 Click into one to see the route rail and, if this site currently holds
 that trip, a working handover form. Use the **Containers** link in the
 header for the equivalent view of whatever `container-test.sh` seeded.
+
+**With all four backends running** (previous step), you can run all
+four frontends too, each in its own terminal and its own browser tab —
+`npm run start:border` (port 4201), `start:port` (4202),
+`start:destination` (4203), alongside `npm start` for Depot. Hand a
+trip off from Depot's tab, then refresh Border's tab: it shows up
+there too, purely through the database replication underneath, not
+through anything the frontend does to keep the two in sync. Full
+detail: `frontend/README.md`.
 
 ---
 

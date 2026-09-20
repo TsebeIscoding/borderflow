@@ -1,0 +1,11 @@
+# Port (the site) profile. Port-forward Port's pod to local 5434
+# before running this: kubectl port-forward -n port port-db-0 5434:5432
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5434/borderflow
+
+site:
+  id: port

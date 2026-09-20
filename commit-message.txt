@@ -1,0 +1,46 @@
+Add full CRUD for all six entities; fix deferred-flush delete bug
+
+Backend CRUD additions:
+- OriginSiteOnlyException, EntityInUseException (shared across all
+  entities)
+- Trip, Container, Vehicle, Driver, Client, Consignment: Create and
+  Delete endpoints, all origin-only (Depot), matching the existing
+  REVOKE-based single-leader enforcement at the DB level
+- Added real constructors to ContainerMaster, VehicleProfile,
+  DriverProfile, ClientCore, Consignment (previously JPA-only,
+  protected no-arg constructors)
+- 19 new unit tests (3-4 per *CreationService) covering the
+  origin-site restriction -- 38/38 passing
+
+Design notes (documented in backend/README.md's new CRUD section):
+- Create/Delete: origin-only, clean 403/error before reaching the DB
+- Read: unchanged, every site, both roles
+- Update: deliberately NOT a generic "edit" endpoint -- Master fields
+  are immutable by design; the existing domain-specific transitions
+  (Handover.handOff, *Relocation.relocate) ARE the Update operation
+  for the State fragment, which is the only part meant to change
+- client_contact (PII) has no entity, endpoint, or code path anywhere
+  in this codebase, by design -- not a missing CRUD operation
+
+Bug found and fixed during manual end-to-end testing:
+- Deleting a Client with a Consignment still referencing it (FK
+  violation) surfaced as a misleading 401 "valid token required"
+  instead of a clean 409. Root cause: repository.deleteById() doesn't
+  execute the DELETE immediately -- Hibernate defers the flush to
+  transaction commit, which happens after the @Transactional method
+  returns, so the FK violation propagated as an unhandled exception
+  outside the try/catch, then got misrouted through Spring's /error
+  handling (same masking pattern as the earlier app_users grant bug).
+  Fixed by calling .flush() immediately after deleteById() in all six
+  *CreationService.delete() methods, forcing the constraint check to
+  happen where it can actually be caught.
+
+Verified against the live cluster:
+- Create: all six entities, including chained creation
+  (Client -> Consignment -> Container)
+- Delete: all six entities succeed when nothing references them
+- Delete correctly blocked (409) when a real FK exists (Client with
+  an active Consignment), confirmed both before and after the fix
+
+Docs: backend/README.md, root README.md, docs/testing/test-results.md
+all updated to reflect exact verification status per entity.

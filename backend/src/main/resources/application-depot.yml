@@ -1,0 +1,12 @@
+# Depot profile. Port-forward Depot's pod to local 5432 (the default
+# Postgres port) before running this: kubectl port-forward -n depot
+# depot-db-0 5432:5432
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/borderflow
+
+site:
+  id: depot
