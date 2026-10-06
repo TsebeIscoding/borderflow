@@ -49,7 +49,8 @@ What's implemented:
   terminal "Delivered" status, no matching event-log row.
 - **Container create + delete** — `POST /api/containers`,
   `DELETE /api/containers/{containerId}`. Same origin-only pattern as
-  Trip's. **Verified against live data** (section 8 of
+  Trip's. Create validates the
+  referenced consignment exists (clean 404, backed by the V7 foreign key). **Verified against live data** (section 8 of
   `docs/testing/test-results.md`).
 - **Vehicle and Driver read + relocate endpoints** —
   `GET /api/vehicles`, `GET /api/vehicles/{id}`,

@@ -227,3 +227,58 @@ confusing 401 appears, check the request URL as well as the backend log.
 site, unknown trip). Incident has the same shape and rules as
 Milestone and is covered by `IncidentServiceTest`, but only its
 success path and replication were run against the cluster.
+
+## 10. Container → Consignment foreign key — FOUND MISSING, FIXED, VERIFIED
+
+**Found during frontend testing.** The Consignments page showed "No
+consignments on this site's manifest yet" while the test container
+`TEST-CONT-0001` still pointed at consignment `66666666-…`. The API
+confirmed it (`GET /api/consignments` returned `[]`), and a row count
+showed `consignment = 0, container_master = 1` at all four sites.
+
+**Root cause.** The design doc specifies `Container_Master(...,
+consignment_id FK, ...)`, but `V4` declares `container_master` before
+`consignment` and left `consignment_id` as a bare `UUID NOT NULL`. Only
+`consignment_client_id_fkey` existed (confirmed against `pg_constraint`).
+So a Consignment could be deleted while a Container still referenced it
+— the earlier delete tests (section 8) did exactly that to the test
+consignment — and a Container could be created against a consignment
+that never existed. Same class of gap as the Client → Consignment case
+fixed in section 8, just on the other relationship.
+
+**Fix.**
+- `V7__container_consignment_fk.sql` (depot and non-depot): adds
+  `container_master_consignment_id_fkey`. The data had to be repaired
+  first — the missing consignment was restored under its original ID
+  and client — because the constraint cannot be added while a row
+  dangles. Applied at all four sites (`ALTER TABLE` at each).
+- `ContainerCreationService.create()` now checks the consignment exists
+  and throws `ConsignmentNotFoundException` (404), the same pattern
+  `ConsignmentCreationService` uses for clients, instead of leaving the
+  database to reject it.
+- One new unit test (48 total, all passing).
+
+**Verification (live, Depot backend):**
+
+| Check | Expected | Result |
+|---|---|---|
+| Delete a consignment a container references | 409 | 409 `EntityInUseException` (the key fired inside `flush()`) |
+| Create a container for a nonexistent consignment | 404 | 404, "No consignment found with id 9999…" |
+| Create a container for the real consignment | 200 | 200, new container at `depot`, `AtOrigin`, `lamportTs: 1` |
+
+**A second instance of the masked-401 pattern, worth recording.** Before
+the Depot backend was restarted on the new code, the nonexistent-
+consignment create returned the generic `401 "A valid token is
+required"`. The backend log showed the real cause: the insert was only
+flushed at transaction commit (`commitTransactionAfterReturning`), where
+the foreign-key violation was thrown outside any `try/catch`. Checking
+for the row's existence before saving avoids that path entirely; the
+restart onto the new code then returned the clean 404. Same lesson as
+sections 6 and 8: look at the backend's own log when a 401 appears where
+it shouldn't.
+
+**Not separately exercised live:** replication of a container created
+after the constraint was added, and the non-depot sites' copy of the
+constraint beyond the `ALTER TABLE` succeeding. Replication apply does
+not fire foreign-key checks, so this is not expected to differ from
+before, but it has not been confirmed.
