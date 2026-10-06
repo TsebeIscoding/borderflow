@@ -123,6 +123,16 @@ h3 {
   background: #ffa15f;
 }
 
+.bf-btn--danger {
+  background: transparent;
+  border-color: var(--bf-danger);
+  color: var(--bf-danger);
+}
+
+.bf-btn--danger:hover:not(:disabled) {
+  background: rgba(248, 81, 73, 0.1);
+}
+
 .bf-status-chip {
   display: inline-flex;
   align-items: center;

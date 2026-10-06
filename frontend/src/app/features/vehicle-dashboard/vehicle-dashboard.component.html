@@ -1,0 +1,62 @@
+<div class="bf-dashboard__header-row">
+  <div>
+    <div class="bf-eyebrow">Active manifest</div>
+    <h1>Vehicles</h1>
+  </div>
+  @if (canCreate) {
+    <button type="button" class="bf-btn bf-btn--primary" (click)="showCreateForm.set(!showCreateForm())">
+      {{ showCreateForm() ? 'Cancel' : '+ New vehicle' }}
+    </button>
+  }
+</div>
+
+@if (showCreateForm()) {
+  <div class="bf-panel bf-create-panel">
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()" class="bf-form">
+      <label class="bf-form__field">
+        <span class="bf-form__label">Registration number</span>
+        <input class="bf-form__input" type="text" formControlName="registrationNumber" placeholder="e.g. CA 123-456" />
+      </label>
+      <label class="bf-form__field">
+        <span class="bf-form__label">Capacity (tonnes)</span>
+        <input class="bf-form__input" type="number" step="0.1" min="0.01" formControlName="capacity" />
+      </label>
+      <button type="submit" class="bf-btn bf-btn--primary" [disabled]="createForm.invalid || creating()">
+        {{ creating() ? 'Creating…' : 'Create vehicle' }}
+      </button>
+      @if (createError()) {
+        <p class="bf-form__error">{{ createError() }}</p>
+      }
+    </form>
+  </div>
+}
+
+@if (loading()) {
+  <p class="bf-dashboard__hint">Loading vehicles…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-dashboard__error">
+    <strong>Vehicle list unavailable.</strong>
+    <span>{{ error() }}</span>
+  </div>
+} @else if (vehicles().length === 0) {
+  <div class="bf-panel bf-dashboard__empty">
+    <p>No vehicles on this site's manifest yet.</p>
+  </div>
+} @else {
+  <div class="bf-panel bf-manifest">
+    <div class="bf-manifest__row bf-manifest__row--head">
+      <span>Vehicle</span>
+      <span>Position</span>
+      <span>Status</span>
+      <span></span>
+    </div>
+    @for (vehicle of vehicles(); track vehicle.vehicleId) {
+      <a class="bf-manifest__row" [routerLink]="['/vehicles', vehicle.vehicleId]">
+        <span class="bf-manifest__id">{{ vehicle.registrationNumber }}</span>
+        <bf-route-rail [currentSiteId]="vehicle.currentSiteId" [delivered]="false" [compact]="true" />
+        <span class="bf-status-chip bf-status-chip--transit">{{ vehicle.status }}</span>
+        <span class="bf-manifest__lamport">ts {{ vehicle.lamportTs }}</span>
+      </a>
+    }
+  </div>
+}

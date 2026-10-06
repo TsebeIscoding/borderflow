@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ContainerRelocationRequest, ContainerRelocationResponse, ContainerSummary } from '../models/container.model';
+import { ContainerCreateRequest, ContainerRelocationRequest, ContainerRelocationResponse, ContainerSummary } from '../models/container.model';
 
 /** Same shape as TripService -- see its class javadoc for why there's no "list every site" call. */
 @Injectable({ providedIn: 'root' })
@@ -20,5 +20,15 @@ export class ContainerService {
 
   relocate(containerId: string, request: ContainerRelocationRequest): Observable<ContainerRelocationResponse> {
     return this.http.post<ContainerRelocationResponse>(`${this.base}/${containerId}/relocate`, request);
+  }
+
+  /** Backend rejects this with 403 unless this site is Depot -- see OriginSiteOnlyException. */
+  create(request: ContainerCreateRequest): Observable<ContainerSummary> {
+    return this.http.post<ContainerSummary>(this.base, request);
+  }
+
+  /** Same origin-only restriction as create(). */
+  delete(containerId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${containerId}`);
   }
 }

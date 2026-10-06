@@ -64,3 +64,20 @@
   color: var(--bf-text-muted);
   text-align: right;
 }
+
+.bf-dashboard__header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bf-create-panel {
+  margin-top: 1rem;
+  padding: 1.5rem;
+}
+
+.bf-create-panel .bf-form {
+  max-width: 22rem;
+}

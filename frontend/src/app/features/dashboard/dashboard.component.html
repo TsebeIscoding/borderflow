@@ -1,5 +1,36 @@
-<div class="bf-eyebrow">Active manifest</div>
-<h1>Trips</h1>
+<div class="bf-dashboard__header-row">
+  <div>
+    <div class="bf-eyebrow">Active manifest</div>
+    <h1>Trips</h1>
+  </div>
+  @if (canCreate) {
+    <button type="button" class="bf-btn bf-btn--primary" (click)="showCreateForm.set(!showCreateForm())">
+      {{ showCreateForm() ? 'Cancel' : '+ New trip' }}
+    </button>
+  }
+</div>
+
+@if (showCreateForm()) {
+  <div class="bf-panel bf-create-panel">
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()" class="bf-form">
+      <label class="bf-form__field">
+        <span class="bf-form__label">Destination</span>
+        <select formControlName="destinationSiteId" class="bf-form__input">
+          <option value="" disabled>Select destination site</option>
+          @for (site of siteOptions; track site) {
+            <option [value]="site">{{ siteLabels[site] }}</option>
+          }
+        </select>
+      </label>
+      <button type="submit" class="bf-btn bf-btn--primary" [disabled]="createForm.invalid || creating()">
+        {{ creating() ? 'Creating…' : 'Create trip' }}
+      </button>
+      @if (createError()) {
+        <p class="bf-form__error">{{ createError() }}</p>
+      }
+    </form>
+  </div>
+}
 
 @if (loading()) {
   <p class="bf-dashboard__hint">Loading manifest…</p>

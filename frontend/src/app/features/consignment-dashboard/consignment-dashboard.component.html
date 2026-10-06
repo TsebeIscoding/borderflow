@@ -1,0 +1,83 @@
+<div class="bf-dashboard__header-row">
+  <div>
+    <div class="bf-eyebrow">Master data</div>
+    <h1>Consignments</h1>
+  </div>
+  @if (canWrite) {
+    <button type="button" class="bf-btn bf-btn--primary" (click)="showCreateForm.set(!showCreateForm())">
+      {{ showCreateForm() ? 'Cancel' : '+ New consignment' }}
+    </button>
+  }
+</div>
+
+@if (showCreateForm()) {
+  <div class="bf-panel bf-create-panel">
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()" class="bf-form">
+      <label class="bf-form__field">
+        <span class="bf-form__label">Client</span>
+        <select formControlName="clientId" class="bf-form__input">
+          <option value="" disabled>Select client</option>
+          @for (client of clients(); track client.clientId) {
+            <option [value]="client.clientId">{{ client.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="bf-form__field">
+        <span class="bf-form__label">Description</span>
+        <input class="bf-form__input" type="text" formControlName="description" placeholder="e.g. 3x 40ft general cargo" />
+      </label>
+      <button type="submit" class="bf-btn bf-btn--primary" [disabled]="createForm.invalid || creating()">
+        {{ creating() ? 'Creating…' : 'Create consignment' }}
+      </button>
+      @if (createError()) {
+        <p class="bf-form__error">{{ createError() }}</p>
+      }
+      @if (clients().length === 0) {
+        <p class="bf-hint">No clients exist yet — create one first from the Clients page.</p>
+      }
+    </form>
+  </div>
+}
+
+@if (deleteError()) {
+  <p class="bf-form__error">{{ deleteError() }}</p>
+}
+
+@if (loading()) {
+  <p class="bf-dashboard__hint">Loading consignments…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-dashboard__error">
+    <strong>Consignment list unavailable.</strong>
+    <span>{{ error() }}</span>
+  </div>
+} @else if (consignments().length === 0) {
+  <div class="bf-panel bf-dashboard__empty">
+    <p>No consignments on this site's manifest yet.</p>
+  </div>
+} @else {
+  <div class="bf-panel bf-manifest">
+    <div class="bf-manifest__row bf-manifest__row--head">
+      <span>Client</span>
+      <span>Description</span>
+      <span></span>
+      <span></span>
+    </div>
+    @for (consignment of consignments(); track consignment.consignmentId) {
+      <div class="bf-manifest__row">
+        <span class="bf-manifest__id">{{ clientName(consignment.clientId) }}</span>
+        <span>{{ consignment.description }}</span>
+        <span></span>
+        @if (canWrite) {
+          <button
+            type="button"
+            class="bf-btn bf-btn--danger bf-manifest__row-action"
+            (click)="deleteConsignment(consignment)"
+            [disabled]="deletingId() === consignment.consignmentId"
+          >
+            {{ deletingId() === consignment.consignmentId ? 'Deleting…' : 'Delete' }}
+          </button>
+        }
+      </div>
+    }
+  </div>
+}

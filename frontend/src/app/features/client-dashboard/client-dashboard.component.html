@@ -1,0 +1,71 @@
+<div class="bf-dashboard__header-row">
+  <div>
+    <div class="bf-eyebrow">Master data</div>
+    <h1>Clients</h1>
+  </div>
+  @if (canWrite) {
+    <button type="button" class="bf-btn bf-btn--primary" (click)="showCreateForm.set(!showCreateForm())">
+      {{ showCreateForm() ? 'Cancel' : '+ New client' }}
+    </button>
+  }
+</div>
+
+@if (showCreateForm()) {
+  <div class="bf-panel bf-create-panel">
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()" class="bf-form">
+      <label class="bf-form__field">
+        <span class="bf-form__label">Name</span>
+        <input class="bf-form__input" type="text" formControlName="name" placeholder="e.g. Acme Freight Co" />
+      </label>
+      <button type="submit" class="bf-btn bf-btn--primary" [disabled]="createForm.invalid || creating()">
+        {{ creating() ? 'Creating…' : 'Create client' }}
+      </button>
+      @if (createError()) {
+        <p class="bf-form__error">{{ createError() }}</p>
+      }
+    </form>
+  </div>
+}
+
+@if (deleteError()) {
+  <p class="bf-form__error">{{ deleteError() }}</p>
+}
+
+@if (loading()) {
+  <p class="bf-dashboard__hint">Loading clients…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-dashboard__error">
+    <strong>Client list unavailable.</strong>
+    <span>{{ error() }}</span>
+  </div>
+} @else if (clients().length === 0) {
+  <div class="bf-panel bf-dashboard__empty">
+    <p>No clients on this site's manifest yet.</p>
+  </div>
+} @else {
+  <div class="bf-panel bf-manifest">
+    <div class="bf-manifest__row bf-manifest__row--head">
+      <span>Name</span>
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    @for (client of clients(); track client.clientId) {
+      <div class="bf-manifest__row">
+        <span class="bf-manifest__id">{{ client.name }}</span>
+        <span></span>
+        <span></span>
+        @if (canWrite) {
+          <button
+            type="button"
+            class="bf-btn bf-btn--danger bf-manifest__row-action"
+            (click)="deleteClient(client)"
+            [disabled]="deletingId() === client.clientId"
+          >
+            {{ deletingId() === client.clientId ? 'Deleting…' : 'Delete' }}
+          </button>
+        }
+      </div>
+    }
+  </div>
+}

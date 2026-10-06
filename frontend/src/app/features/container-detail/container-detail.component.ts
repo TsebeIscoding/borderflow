@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ContainerService } from '../../core/services/container.service';
 import { SITE_LABELS, SITE_ORDER, SiteId } from '../../core/models/trip.model';
@@ -25,6 +25,7 @@ export class ContainerDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly containerService = inject(ContainerService);
   private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
   readonly container = signal<ContainerSummary | null>(null);
@@ -33,6 +34,8 @@ export class ContainerDetailComponent implements OnInit {
   readonly submitting = signal(false);
   readonly relocateError = signal<string | null>(null);
   readonly relocateSuccess = signal<string | null>(null);
+  readonly deleting = signal(false);
+  readonly deleteError = signal<string | null>(null);
 
   readonly thisSiteId = environment.siteId;
   readonly siteLabels = SITE_LABELS;
@@ -92,5 +95,27 @@ export class ContainerDetailComponent implements OnInit {
   /** Same rule as TripDetailComponent.canInitiateHandover -- see its comment. No "terminal status" check here, unlike Trip. */
   canInitiateRelocation(container: ContainerSummary): boolean {
     return this.auth.isOperator && container.currentSiteId === this.thisSiteId;
+  }
+
+  /** Same origin-only restriction as container creation. */
+  canDelete(): boolean {
+    return this.auth.isOperator && this.thisSiteId === 'depot';
+  }
+
+  deleteContainer(): void {
+    const container = this.container();
+    if (!container) return;
+    if (!confirm(`Delete container ${container.containerNumber}? This cannot be undone.`)) return;
+
+    this.deleting.set(true);
+    this.deleteError.set(null);
+
+    this.containerService.delete(container.containerId).subscribe({
+      next: () => this.router.navigateByUrl('/containers'),
+      error: (err) => {
+        this.deleting.set(false);
+        this.deleteError.set(err?.error?.message ?? 'Could not delete container.');
+      },
+    });
   }
 }

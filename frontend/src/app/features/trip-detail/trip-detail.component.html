@@ -1,8 +1,20 @@
 <a routerLink="/" class="bf-back">← Manifest</a>
 
 @if (trip(); as t) {
-  <div class="bf-eyebrow">Trip {{ t.tripId }}</div>
-  <h1>{{ siteLabels[t.originSiteId] ?? t.originSiteId }} → {{ siteLabels[t.destinationSiteId] ?? t.destinationSiteId }}</h1>
+  <div class="bf-detail__title-row">
+    <div>
+      <div class="bf-eyebrow">Trip {{ t.tripId }}</div>
+      <h1>{{ siteLabels[t.originSiteId] ?? t.originSiteId }} → {{ siteLabels[t.destinationSiteId] ?? t.destinationSiteId }}</h1>
+    </div>
+    @if (canDelete()) {
+      <button type="button" class="bf-btn bf-btn--danger" (click)="deleteTrip()" [disabled]="deleting()">
+        {{ deleting() ? 'Deleting…' : 'Delete trip' }}
+      </button>
+    }
+  </div>
+  @if (deleteError()) {
+    <p class="bf-form__error">{{ deleteError() }}</p>
+  }
 
   <div class="bf-panel bf-detail__rail-panel">
     <bf-route-rail [currentSiteId]="t.currentSiteId" [delivered]="t.status === 'Delivered'" />

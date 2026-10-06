@@ -94,3 +94,11 @@
   color: var(--bf-success);
   font-size: 0.85rem;
 }
+
+.bf-detail__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}

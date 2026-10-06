@@ -1,0 +1,66 @@
+<div class="bf-dashboard__header-row">
+  <div>
+    <div class="bf-eyebrow">Active manifest</div>
+    <h1>Drivers</h1>
+  </div>
+  @if (canCreate) {
+    <button type="button" class="bf-btn bf-btn--primary" (click)="showCreateForm.set(!showCreateForm())">
+      {{ showCreateForm() ? 'Cancel' : '+ New driver' }}
+    </button>
+  }
+</div>
+
+@if (showCreateForm()) {
+  <div class="bf-panel bf-create-panel">
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()" class="bf-form">
+      <label class="bf-form__field">
+        <span class="bf-form__label">Name</span>
+        <input class="bf-form__input" type="text" formControlName="name" placeholder="e.g. Thabo Nkosi" />
+      </label>
+      <label class="bf-form__field">
+        <span class="bf-form__label">License number</span>
+        <input class="bf-form__input" type="text" formControlName="licenseNumber" placeholder="e.g. LIC-00123" />
+      </label>
+      <label class="bf-form__field">
+        <span class="bf-form__label">Phone (optional)</span>
+        <input class="bf-form__input" type="text" formControlName="phone" placeholder="e.g. 0110000000" />
+      </label>
+      <button type="submit" class="bf-btn bf-btn--primary" [disabled]="createForm.invalid || creating()">
+        {{ creating() ? 'Creating…' : 'Create driver' }}
+      </button>
+      @if (createError()) {
+        <p class="bf-form__error">{{ createError() }}</p>
+      }
+    </form>
+  </div>
+}
+
+@if (loading()) {
+  <p class="bf-dashboard__hint">Loading drivers…</p>
+} @else if (error()) {
+  <div class="bf-panel bf-dashboard__error">
+    <strong>Driver list unavailable.</strong>
+    <span>{{ error() }}</span>
+  </div>
+} @else if (drivers().length === 0) {
+  <div class="bf-panel bf-dashboard__empty">
+    <p>No drivers on this site's manifest yet.</p>
+  </div>
+} @else {
+  <div class="bf-panel bf-manifest">
+    <div class="bf-manifest__row bf-manifest__row--head">
+      <span>Driver</span>
+      <span>Position</span>
+      <span>Status</span>
+      <span></span>
+    </div>
+    @for (driver of drivers(); track driver.driverId) {
+      <a class="bf-manifest__row" [routerLink]="['/drivers', driver.driverId]">
+        <span class="bf-manifest__id">{{ driver.name }}</span>
+        <bf-route-rail [currentSiteId]="driver.currentSiteId" [delivered]="false" [compact]="true" />
+        <span class="bf-status-chip bf-status-chip--transit">{{ driver.status }}</span>
+        <span class="bf-manifest__lamport">ts {{ driver.lamportTs }}</span>
+      </a>
+    }
+  </div>
+}

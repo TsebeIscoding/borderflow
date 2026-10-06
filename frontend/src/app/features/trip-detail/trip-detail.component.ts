@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TripService } from '../../core/services/trip.service';
 import { SITE_LABELS, SITE_ORDER, SiteId, TripSummary } from '../../core/models/trip.model';
@@ -19,6 +19,7 @@ export class TripDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly tripService = inject(TripService);
   private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
   readonly trip = signal<TripSummary | null>(null);
@@ -27,6 +28,8 @@ export class TripDetailComponent implements OnInit {
   readonly submitting = signal(false);
   readonly handoverError = signal<string | null>(null);
   readonly handoverSuccess = signal<string | null>(null);
+  readonly deleting = signal(false);
+  readonly deleteError = signal<string | null>(null);
 
   readonly thisSiteId = environment.siteId;
   readonly siteLabels = SITE_LABELS;
@@ -95,5 +98,27 @@ export class TripDetailComponent implements OnInit {
    */
   canInitiateHandover(trip: TripSummary): boolean {
     return this.auth.isOperator && trip.currentSiteId === this.thisSiteId && trip.status !== 'Delivered';
+  }
+
+  /** Same origin-only restriction as trip creation -- only Depot's backend accepts this. Hiding it elsewhere is UX, the backend re-enforces regardless. */
+  canDelete(): boolean {
+    return this.auth.isOperator && this.thisSiteId === 'depot';
+  }
+
+  deleteTrip(): void {
+    const trip = this.trip();
+    if (!trip) return;
+    if (!confirm(`Delete trip ${trip.tripId.slice(0, 8)}? This cannot be undone.`)) return;
+
+    this.deleting.set(true);
+    this.deleteError.set(null);
+
+    this.tripService.delete(trip.tripId).subscribe({
+      next: () => this.router.navigateByUrl('/'),
+      error: (err) => {
+        this.deleting.set(false);
+        this.deleteError.set(err?.error?.message ?? 'Could not delete trip.');
+      },
+    });
   }
 }

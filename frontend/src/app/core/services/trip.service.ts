@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { HandoverRequest, HandoverResponse, TripSummary } from '../models/trip.model';
+import { HandoverRequest, HandoverResponse, TripCreateRequest, TripSummary } from '../models/trip.model';
 
 /**
  * Talks to THIS site's own backend instance only (environment.apiBaseUrl).
@@ -26,5 +26,15 @@ export class TripService {
 
   handOff(tripId: string, request: HandoverRequest): Observable<HandoverResponse> {
     return this.http.post<HandoverResponse>(`${this.base}/${tripId}/handover`, request);
+  }
+
+  /** Backend rejects this with 403 unless this site is Depot -- see OriginSiteOnlyException. */
+  create(request: TripCreateRequest): Observable<TripSummary> {
+    return this.http.post<TripSummary>(this.base, request);
+  }
+
+  /** Same origin-only restriction as create(). */
+  delete(tripId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${tripId}`);
   }
 }

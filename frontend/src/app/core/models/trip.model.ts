@@ -39,3 +39,8 @@ export interface HandoverResponse {
   newStatus: TripStatus;
   lamportTs: number;
 }
+
+/** Mirrors backend TripCreateRequest -- originSiteId is never sent, the backend always uses its own site.id. */
+export interface TripCreateRequest {
+  destinationSiteId: string;
+}

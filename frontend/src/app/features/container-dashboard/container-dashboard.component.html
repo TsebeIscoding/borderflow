@@ -1,5 +1,51 @@
-<div class="bf-eyebrow">Active manifest</div>
-<h1>Containers</h1>
+<div class="bf-dashboard__header-row">
+  <div>
+    <div class="bf-eyebrow">Active manifest</div>
+    <h1>Containers</h1>
+  </div>
+  @if (canCreate) {
+    <button type="button" class="bf-btn bf-btn--primary" (click)="showCreateForm.set(!showCreateForm())">
+      {{ showCreateForm() ? 'Cancel' : '+ New container' }}
+    </button>
+  }
+</div>
+
+@if (showCreateForm()) {
+  <div class="bf-panel bf-create-panel">
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()" class="bf-form">
+      <label class="bf-form__field">
+        <span class="bf-form__label">Container number</span>
+        <input class="bf-form__input" type="text" formControlName="containerNumber" placeholder="e.g. MSCU1234567" />
+      </label>
+      <label class="bf-form__field">
+        <span class="bf-form__label">Consignment</span>
+        <select formControlName="consignmentId" class="bf-form__input">
+          <option value="" disabled>Select consignment</option>
+          @for (consignment of consignments(); track consignment.consignmentId) {
+            <option [value]="consignment.consignmentId">{{ consignment.description }}</option>
+          }
+        </select>
+      </label>
+      <label class="bf-form__field">
+        <span class="bf-form__label">Size</span>
+        <select formControlName="size" class="bf-form__input">
+          <option value="" disabled>Select size</option>
+          <option value="20ft">20ft</option>
+          <option value="40ft">40ft</option>
+        </select>
+      </label>
+      <button type="submit" class="bf-btn bf-btn--primary" [disabled]="createForm.invalid || creating()">
+        {{ creating() ? 'Creating…' : 'Create container' }}
+      </button>
+      @if (createError()) {
+        <p class="bf-form__error">{{ createError() }}</p>
+      }
+      @if (consignments().length === 0) {
+        <p class="bf-hint">No consignments exist yet — create one first from the Consignments page.</p>
+      }
+    </form>
+  </div>
+}
 
 @if (loading()) {
   <p class="bf-dashboard__hint">Loading manifest…</p>

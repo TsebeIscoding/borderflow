@@ -1,14 +1,14 @@
-<a routerLink="/containers" class="bf-back">← Manifest</a>
+<a routerLink="/vehicles" class="bf-back">← Manifest</a>
 
-@if (container(); as c) {
+@if (vehicle(); as v) {
   <div class="bf-detail__title-row">
     <div>
-      <div class="bf-eyebrow">Container {{ c.containerNumber }}</div>
-      <h1>{{ c.containerNumber }} — {{ c.size }}</h1>
+      <div class="bf-eyebrow">Vehicle {{ v.registrationNumber }}</div>
+      <h1>{{ v.registrationNumber }} — {{ v.capacity }}t</h1>
     </div>
     @if (canDelete()) {
-      <button type="button" class="bf-btn bf-btn--danger" (click)="deleteContainer()" [disabled]="deleting()">
-        {{ deleting() ? 'Deleting…' : 'Delete container' }}
+      <button type="button" class="bf-btn bf-btn--danger" (click)="deleteVehicle()" [disabled]="deleting()">
+        {{ deleting() ? 'Deleting…' : 'Delete vehicle' }}
       </button>
     }
   </div>
@@ -17,19 +17,19 @@
   }
 
   <div class="bf-panel bf-detail__rail-panel">
-    <bf-route-rail [currentSiteId]="c.currentSiteId" [delivered]="false" />
+    <bf-route-rail [currentSiteId]="v.currentSiteId" [delivered]="false" />
     <div class="bf-detail__meta">
-      <span class="bf-status-chip bf-status-chip--transit">{{ c.status }}</span>
-      <span class="bf-detail__lamport">lamport_ts {{ c.lamportTs }}</span>
+      <span class="bf-status-chip bf-status-chip--transit">{{ v.status }}</span>
+      <span class="bf-detail__lamport">lamport_ts {{ v.lamportTs }}</span>
     </div>
   </div>
 
   <div class="bf-panel bf-detail__form-panel">
-    @if (canInitiateRelocation(c)) {
-      <h2 class="bf-detail__form-title">Relocate container</h2>
+    @if (canInitiateRelocation(v)) {
+      <h2 class="bf-detail__form-title">Relocate vehicle</h2>
       <p class="bf-hint">
-        This site ({{ siteLabels[thisSiteId] ?? thisSiteId }}) currently holds this container. Confirm the
-        receiving site and who verified the move.
+        This site ({{ siteLabels[thisSiteId] ?? thisSiteId }}) currently has this vehicle. Confirm the receiving
+        site and who verified the move.
       </p>
 
       <form [formGroup]="form" (ngSubmit)="submitRelocate()" class="bf-form">
@@ -61,17 +61,17 @@
       </form>
     } @else if (!auth.isOperator) {
       <p class="bf-hint">
-        Signed in as {{ auth.session()?.role }} — read-only access. Only an OPERATOR can relocate a container.
+        Signed in as {{ auth.session()?.role }} — read-only access. Only an OPERATOR can relocate a vehicle.
       </p>
     } @else {
       <p class="bf-hint">
-        This container is currently held at {{ siteLabels[c.currentSiteId] ?? c.currentSiteId }}, not this site
-        ({{ siteLabels[thisSiteId] ?? thisSiteId }}). Only the site currently holding a container can relocate it.
+        This vehicle is currently at {{ siteLabels[v.currentSiteId] ?? v.currentSiteId }}, not this site
+        ({{ siteLabels[thisSiteId] ?? thisSiteId }}). Only the site currently holding a vehicle can relocate it.
       </p>
     }
   </div>
 } @else if (loading()) {
-  <p class="bf-hint">Loading container…</p>
+  <p class="bf-hint">Loading vehicle…</p>
 } @else if (error()) {
   <div class="bf-panel bf-detail__error">{{ error() }}</div>
 }

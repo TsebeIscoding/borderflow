@@ -1,31 +1,27 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ContainerService } from '../../core/services/container.service';
-import { ContainerSummary } from '../../core/models/container.model';
-import { ClientService } from '../../core/services/client.service';
-import { ConsignmentSummary } from '../../core/models/client.model';
+import { VehicleService } from '../../core/services/vehicle.service';
+import { VehicleSummary } from '../../core/models/vehicle.model';
 import { RouteRailComponent } from '../../shared/route-rail/route-rail.component';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
 
-/** Same shape as DashboardComponent -- see it for the reasoning behind every choice here. */
+/** Same shape as ContainerDashboardComponent. */
 @Component({
-  selector: 'bf-container-dashboard',
+  selector: 'bf-vehicle-dashboard',
   standalone: true,
   imports: [RouterLink, RouteRailComponent, ReactiveFormsModule],
-  templateUrl: './container-dashboard.component.html',
+  templateUrl: './vehicle-dashboard.component.html',
   styleUrls: ['../dashboard/dashboard.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ContainerDashboardComponent implements OnInit {
-  private readonly containerService = inject(ContainerService);
-  private readonly clientService = inject(ClientService);
+export class VehicleDashboardComponent implements OnInit {
+  private readonly vehicleService = inject(VehicleService);
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
 
-  readonly containers = signal<ContainerSummary[]>([]);
-  readonly consignments = signal<ConsignmentSummary[]>([]);
+  readonly vehicles = signal<VehicleSummary[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -36,30 +32,23 @@ export class ContainerDashboardComponent implements OnInit {
   readonly canCreate = this.auth.isOperator && environment.siteId === 'depot';
 
   readonly createForm = this.fb.nonNullable.group({
-    containerNumber: ['', Validators.required],
-    consignmentId: ['', Validators.required],
-    size: ['', Validators.required],
+    registrationNumber: ['', Validators.required],
+    capacity: [0, [Validators.required, Validators.min(0.01)]],
   });
 
   ngOnInit(): void {
     this.load();
-
-    // Best-effort: only needed to populate the create form's dropdown.
-    this.clientService.listConsignments().subscribe({
-      next: (consignments) => this.consignments.set(consignments),
-      error: () => {},
-    });
   }
 
   private load(): void {
     this.loading.set(true);
-    this.containerService.listContainers().subscribe({
-      next: (containers) => {
-        this.containers.set(containers);
+    this.vehicleService.listVehicles().subscribe({
+      next: (vehicles) => {
+        this.vehicles.set(vehicles);
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Could not reach this site\'s manifest service.');
+        this.error.set('Could not reach this site\'s vehicle list.');
         this.loading.set(false);
       },
     });
@@ -71,7 +60,7 @@ export class ContainerDashboardComponent implements OnInit {
     this.creating.set(true);
     this.createError.set(null);
 
-    this.containerService.create(this.createForm.getRawValue()).subscribe({
+    this.vehicleService.create(this.createForm.getRawValue()).subscribe({
       next: () => {
         this.creating.set(false);
         this.showCreateForm.set(false);
@@ -80,7 +69,7 @@ export class ContainerDashboardComponent implements OnInit {
       },
       error: (err) => {
         this.creating.set(false);
-        this.createError.set(err?.error?.message ?? 'Could not create container.');
+        this.createError.set(err?.error?.message ?? 'Could not create vehicle.');
       },
     });
   }

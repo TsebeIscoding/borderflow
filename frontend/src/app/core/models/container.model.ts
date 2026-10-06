@@ -31,3 +31,9 @@ export interface ContainerRelocationResponse {
   newStatus: string;
   lamportTs: number;
 }
+
+export interface ContainerCreateRequest {
+  containerNumber: string;
+  consignmentId: string;
+  size: string;
+}

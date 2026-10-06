@@ -28,32 +28,68 @@ src/app/
 │   │                                HTTP interceptor, route guard
 │   ├── models/                      Wire types matching backend DTOs
 │   │   ├── trip.model.ts            Also holds SITE_ORDER/SITE_LABELS,
-│   │   │                            shared by both Trip and Container views
-│   │   └── container.model.ts
+│   │   │                            shared across every feature
+│   │   ├── container.model.ts
+│   │   ├── vehicle.model.ts
+│   │   ├── driver.model.ts
+│   │   └── client.model.ts           Holds BOTH Client and Consignment --
+│   │                                see client.service.ts's comment for why
 │   └── services/                    All HTTP calls, nothing else
 │       ├── trip.service.ts
-│       └── container.service.ts
+│       ├── container.service.ts
+│       ├── vehicle.service.ts
+│       ├── driver.service.ts
+│       └── client.service.ts
 ├── shared/
 │   └── route-rail/                  The one signature visual element,
 │                                    reused compact (dashboard rows) and
-│                                    full-size (detail pages), and reused
-│                                    as-is across both Trip and Container
+│                                    full-size (detail pages), across
+│                                    every entity with a State fragment
 └── features/
     ├── login/                       Sign-in form, posts to /api/auth/login
-    ├── dashboard/                   Trip manifest table
-    ├── trip-detail/                 Full route rail + the handover form
-    ├── container-dashboard/          Container manifest table -- same
-    │                                template shape as dashboard/, no
-    │                                "Delivered" status concept (see
-    │                                container.model.ts)
-    └── container-detail/             Full route rail + the relocate
-                                     form -- same shape as trip-detail/,
-                                     styles reused directly from it via
-                                     a relative styleUrl
+    ├── dashboard/                   Trip manifest + create form
+    ├── trip-detail/                 Route rail + handover form + delete
+    ├── container-dashboard/          Container manifest + create form
+    ├── container-detail/             Route rail + relocate form + delete
+    ├── vehicle-dashboard/            Same shape as container-dashboard/
+    ├── vehicle-detail/               Same shape as container-detail/
+    ├── driver-dashboard/             Same shape as vehicle-dashboard/
+    ├── driver-detail/                Same shape as vehicle-detail/
+    ├── client-dashboard/             List + create + delete, no detail
+    │                                page and no route rail -- Client has
+    │                                no State fragment, nothing to relocate
+    └── consignment-dashboard/        Same shape as client-dashboard/,
+                                     its create form's Client dropdown is
+                                     populated via client.service.ts
 ```
 
-Trips and Containers are reachable via the nav links in the header
+All six entities are reachable via the nav links in the header
 (`app.component.html`), shown once signed in.
+
+## CRUD coverage, and why it isn't uniform across entities
+
+Every entity has **Create**, **Read**, and **Delete** in the UI. What
+each entity does **not** have is a generic "Update" form — because the
+backend doesn't have one either, on purpose (see
+`../backend/README.md`'s CRUD section). What exists instead:
+
+- **Trip** and **Container** — the handover/relocate form on their
+  detail pages *is* their Update operation, scoped to the State
+  fragment (the only part meant to change after creation)
+- **Vehicle** and **Driver** — same pattern, their own relocate form
+- **Client** and **Consignment** — no Update at all, because they have
+  no State fragment and nothing about them is meant to change once
+  created. They also have no detail page — a name, or a client +
+  description, doesn't need a whole page; list + inline delete is
+  enough.
+
+**Create and Delete buttons only render when `environment.siteId ===
+'depot'`** (see each dashboard's `canCreate`/`canWrite`), because the
+backend only ever accepts these at the origin site
+(`OriginSiteOnlyException`). Hiding the button elsewhere is purely
+UX — the backend re-enforces the same rule regardless, so a direct API
+call from a non-Depot site still gets rejected even if a client
+somehow bypassed the UI.
 
 ## Authentication
 
@@ -124,11 +160,17 @@ frontend or backend did to "sync" the two sites.
 
 ## Not yet built
 
-- No view for Vehicle/Driver/Client fragments — no backend endpoints
-  exist for these yet either (see root `README.md`'s status
-  checklist).
 - No token refresh — a session simply expires (`expiration-minutes` in
   the backend's `application.yml`, 60 by default) and the next request
   gets a 401, which forces a re-login. Fine for a portfolio project,
   a real deployment would want a refresh flow so an active user isn't
   interrupted mid-task.
+- No Trip-Container linkage UI, no Milestone/Incident timeline UI —
+  the backend now has full support for all three
+  (`POST /api/trips/{tripId}/containers/{containerId}` to link,
+  `POST /api/trips/{tripId}/milestones`,
+  `POST /api/trips/{tripId}/incidents` — see `backend/README.md`), but
+  nothing in this Angular app calls any of them yet. Until this is
+  built, a Trip and a Container you create are tracked as separate,
+  unconnected records in the UI even though the API to connect them
+  already exists.
