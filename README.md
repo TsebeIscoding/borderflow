@@ -342,32 +342,42 @@ Full rationale for all of the above:
 
 ## Current status
 
-- ✅ Trip: schema, replication, and frontend all built, deployed, and
-  tested end to end. Backend now has full CRUD (see
-  `backend/README.md`'s CRUD section for what "full" means given the
-  design's own constraints) — Read and the `Handover` transition were
-  previously verified against the live cluster; **the new Create/Delete
-  endpoints have not been exercised against live data yet.**
-- ✅ Container: schema, replication, and frontend all built, deployed,
-  and tested end to end — same rigor as Trip, with two documented
-  simplifications (no "Delivered" terminal status, no matching
-  event-log row — see `backend/README.md`). Backend now has full CRUD;
-  Read and relocate were previously verified against live data,
-  **Create/Delete are new and not yet exercised against live data.**
-- 🚧 Vehicle / Driver: schema, backend (full CRUD, same pattern as
-  Container), unit tested. Read and relocate were previously verified
-  against the live cluster; **Create/Delete are new and not yet
-  exercised against live data.** **No frontend view yet.**
-- 🚧 Client / Consignment: schema and backend (full CRUD, no
-  relocation concept — they have nothing that changes after creation)
-  built. Read was previously verified against live data;
-  **Create/Delete are new and not yet exercised against live data.**
-  **No frontend view yet.** `client_contact` (PII) deliberately has no
-  entity, endpoint, or any code path anywhere in this project — see
-  `ClientCore`'s class javadoc in the backend.
+- ✅ Trip: schema, replication, backend, and frontend all built,
+  deployed, and tested end to end. Full CRUD (see `backend/README.md`'s
+  CRUD section for what "full" means given the design's own
+  constraints) verified against the live cluster — Read, Create,
+  Delete, and the `Handover` transition all confirmed working, plus
+  the deferred-flush delete bug found and fixed
+  (`docs/testing/test-results.md` #8).
+- ✅ Container: same as Trip — schema, replication, backend, and
+  frontend all built and tested end to end, full CRUD verified against
+  live data, with two documented simplifications (no "Delivered"
+  terminal status, no matching event-log row — see
+  `backend/README.md`).
+- ✅ Vehicle / Driver: schema, backend, and frontend now built. Backend
+  full CRUD (Read, relocate, Create, Delete) verified against live
+  data; frontend dashboard + detail + create + relocate + delete forms
+  built this session, **not yet exercised in a browser**.
+- ✅ Client / Consignment: schema, backend, and frontend now built.
+  Backend full CRUD verified against live data, including the FK-block
+  case (deleting a Client with an active Consignment correctly
+  rejected). Frontend list + create + delete built this session (no
+  relocation concept, no detail page — see `frontend/README.md`),
+  **not yet exercised in a browser**. `client_contact` (PII)
+  deliberately has no entity, endpoint, or any code path anywhere in
+  this project — see `ClientCore`'s class javadoc in the backend.
+- ✅ Trip_Container / Milestone / Incident (backend): linking a Container
+  onto a Trip's manifest, and recording milestones and incidents
+  against a trip, built and verified against the live 4-site cluster —
+  site-must-hold-both-halves rule, role and wrong-site rejection,
+  404/400 handling, and replication of inserts and deletes to all four
+  sites (see section 9 of `docs/testing/test-results.md`). **No
+  frontend exists for any of it yet.**
 - ✅ Authentication: fully built and verified — login, both roles,
   cross-site trust, RBAC enforcement, all tested against the live
-  cluster
+  cluster, including across 4 genuinely separate, simultaneously
+  running backend processes (see "Running all four sites at once" in
+  `backend/README.md`)
 - ❌ No secrets pipeline for the JWT keys (local-dev PEM files only),
   no token refresh
 

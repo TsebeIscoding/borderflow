@@ -28,9 +28,8 @@ What's implemented:
 - **Trip create + delete** — `POST /api/trips`,
   `DELETE /api/trips/{tripId}`. Origin-only (Depot), same enforcement
   pattern as everywhere else — see the CRUD section below.
-  **Newly added, not yet exercised against live data** — only the
-  read and handover paths above have been verified on the live
-  cluster so far.
+  **Verified against live data** — see section 8 of
+  `docs/testing/test-results.md`.
 - `application.yml` with per-site config placeholders (`SITE_ID`,
   datasource, and `spring.flyway.enabled: false` since migrations are
   applied via the `db/migrations` + `infra/k8s` flow, not by this
@@ -50,7 +49,8 @@ What's implemented:
   terminal "Delivered" status, no matching event-log row.
 - **Container create + delete** — `POST /api/containers`,
   `DELETE /api/containers/{containerId}`. Same origin-only pattern as
-  Trip's. **Newly added, not yet exercised against live data.**
+  Trip's. **Verified against live data** (section 8 of
+  `docs/testing/test-results.md`).
 - **Vehicle and Driver read + relocate endpoints** —
   `GET /api/vehicles`, `GET /api/vehicles/{id}`,
   `POST /api/vehicles/{id}/relocate`, and the equivalent under
@@ -59,7 +59,8 @@ What's implemented:
   relocate, business-rule rejection (409), and AUDITOR-blocked (403)
   all confirmed working end to end.
 - **Vehicle and Driver create + delete** — same origin-only pattern.
-  **Newly added, not yet exercised against live data.**
+  **Verified against live data** (section 8 of
+  `docs/testing/test-results.md`).
 - **Client and Consignment read endpoints** — `GET /api/clients`,
   `GET /api/clients/{id}`, `GET /api/consignments`,
   `GET /api/consignments/{id}`. Read-only, both roles — there's no
@@ -71,7 +72,8 @@ What's implemented:
 - **Client and Consignment create + delete** — same origin-only
   pattern; deleting a Client with existing Consignments correctly
   fails (409) rather than raising a raw foreign-key error.
-  **Newly added, not yet exercised against live data.**
+  **Verified against live data** (section 8 of
+  `docs/testing/test-results.md`).
 
 What's not implemented yet:
 
@@ -128,6 +130,39 @@ or site. That's not a missing CRUD operation; it's a boundary this
 project has decided never to cross at the application layer at all,
 consistent with the schema-level decision (see the design doc) not to
 even replicate that table to operational sites.
+
+## Trip_Container, Milestone, and Incident
+
+Three parts of the schema (`db/migrations/*/V4`) existed with no
+backend code at all until this was built — not an oversight left in
+the design doc's "not yet built" list indefinitely, but closed
+outright:
+
+- **`POST /api/trips/{tripId}/containers/{containerId}`** /
+  **`DELETE .../containers/{containerId}`** — links or unlinks a
+  Container onto a Trip's manifest (`TripContainerService`). Business
+  rule: a site can only link a pair it currently holds **both halves
+  of** — the same "must hold" reasoning as `HandoverService`, just
+  checked against two entities' State fragments instead of one.
+  `GET /api/trips/{tripId}/containers` lists the containers on a trip;
+  `GET /api/containers/{containerId}/trips` lists the trips a
+  container has been linked to. Idempotent at the database level
+  (`skip_duplicate_trip_container`) — linking the same pair twice is a
+  silent no-op, not an error.
+- **`POST /api/trips/{tripId}/milestones`** / **`GET
+  .../milestones`** — records a timestamped milestone
+  (`MilestoneService`) against a trip. Same "must currently hold this
+  trip" rule as `HandoverService` (reuses `InvalidHandoverException`
+  rather than inventing a parallel exception for the identical rule).
+- **`POST /api/trips/{tripId}/incidents`** / **`GET
+  .../incidents`** — same shape as Milestone, for logging an
+  incident's free-text description instead of a milestone type.
+
+All three OPERATOR-to-write, either role to read — same pattern as
+everywhere else. Unit tested and **verified against the live 4-site
+cluster** — see section 9 of `docs/testing/test-results.md` for exactly
+what was exercised. **None of this has a frontend yet** — see
+`frontend/README.md`'s "Not yet built".
 
 ## The Handover use case, and what it does vs. leaves to the database
 

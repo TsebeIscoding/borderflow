@@ -12,7 +12,7 @@ public record ContainerSummaryResponse(
         String status,
         long lamportTs
 ) {
-    static ContainerSummaryResponse from(ContainerMaster master, ContainerState state) {
+    public static ContainerSummaryResponse from(ContainerMaster master, ContainerState state) {
         return new ContainerSummaryResponse(
                 master.getContainerId(),
                 master.getContainerNumber(),

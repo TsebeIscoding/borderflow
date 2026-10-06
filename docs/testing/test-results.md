@@ -179,3 +179,51 @@ attempted to delete the Client — correctly rejected with a clean
 the Client — both succeeded (`204`). Delete for Container, Vehicle,
 Driver, Trip, and Consignment (with nothing referencing them) all
 verified working (`204`) earlier in the same session.
+
+
+## 9. Trip_Container, Milestone, Incident — live backend verification — PASS
+
+These three parts of the schema were built after sections 1-8 and
+verified the same way: four separate backend processes (one per site)
+against the live Minikube cluster, with real HTTP requests. Unit tests
+(47 total, 9 of them new for these three services) passed first; this
+section covers what the unit tests cannot — the real schema, real
+permissions, real replication.
+
+Test data: Trip `33333333-...` and Container `44444444-...`, both held
+at Port at the time of testing.
+
+| Check | Expected | Result |
+|---|---|---|
+| Link at Depot (holds neither entity) | 409 | 409, message names where trip, container and this site are |
+| Link at Port (holds both) | 204 | 204 |
+| Read back, both directions | container under trip, trip under container | both correct |
+| Duplicate link | clean response, no second row | 204, row count stayed 1 |
+| Milestone at Port | created and listed | created and listed |
+| Incident at Port | created and listed | created and listed |
+| Milestone at Depot for a trip held at Port | 409 | 409 |
+| AUDITOR POST milestone / link | 403 | 403 / 403 |
+| AUDITOR GET milestones | 200 | 200 |
+| Border OPERATOR token at Port | 401 | 401 |
+| Unknown trip (milestone) / unknown container (link) | 404 | 404 / 404 |
+| Blank `milestoneType` | 400 | 400 |
+| Insert replication | row present at all 4 sites | 1 / 1 / 1 at every site |
+| Unlink at Port | 204, row gone everywhere | 204, count 0 at all 4 sites |
+
+**No bugs were found in the new code on this run.** The first
+`mvn clean test` compiled cleanly and the backends booted against the
+real schema, so the composite-key `TripContainer` mapping and the
+`app_user` grants on the new tables worked without changes.
+
+**One false alarm worth recording**: the first link attempt returned a
+confusing `401 "A valid token is required"`. The token was fine — the
+shell variables holding the trip and container IDs were empty, so the
+request went to `/api/trips//containers/`, which matches no route and
+fell through to Spring's `/error` handling (the same masking pattern as
+sections 6 and 8). Setting the variables fixed it. Lesson: when a
+confusing 401 appears, check the request URL as well as the backend log.
+
+**Not separately exercised live**: Incident's negative cases (wrong
+site, unknown trip). Incident has the same shape and rules as
+Milestone and is covered by `IncidentServiceTest`, but only its
+success path and replication were run against the cluster.

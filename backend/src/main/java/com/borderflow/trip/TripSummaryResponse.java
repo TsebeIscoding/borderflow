@@ -16,7 +16,7 @@ public record TripSummaryResponse(
         String status,
         long lamportTs
 ) {
-    static TripSummaryResponse from(TripMaster master, TripState state) {
+    public static TripSummaryResponse from(TripMaster master, TripState state) {
         return new TripSummaryResponse(
                 master.getTripId(),
                 master.getOriginSiteId(),
