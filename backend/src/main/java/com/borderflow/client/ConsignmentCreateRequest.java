@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record ConsignmentCreateRequest(
         @NotNull UUID clientId,
-        String description
+        String description,
+        @NotNull UUID deliveryPointId
 ) {
 }

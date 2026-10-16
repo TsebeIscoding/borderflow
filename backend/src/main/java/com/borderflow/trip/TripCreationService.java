@@ -1,7 +1,9 @@
 package com.borderflow.trip;
 
+import com.borderflow.common.DeliveryPointNotFoundException;
 import com.borderflow.common.EntityInUseException;
 import com.borderflow.common.OriginSiteOnlyException;
+import com.borderflow.deliverypoint.DeliveryPointRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -23,15 +25,18 @@ public class TripCreationService {
 
     private final TripMasterRepository tripMasterRepository;
     private final TripStateRepository tripStateRepository;
+    private final DeliveryPointRepository deliveryPointRepository;
     private final String thisSiteId;
 
     public TripCreationService(
             TripMasterRepository tripMasterRepository,
             TripStateRepository tripStateRepository,
+            DeliveryPointRepository deliveryPointRepository,
             @Value("${site.id}") String thisSiteId
     ) {
         this.tripMasterRepository = tripMasterRepository;
         this.tripStateRepository = tripStateRepository;
+        this.deliveryPointRepository = deliveryPointRepository;
         this.thisSiteId = thisSiteId;
     }
 
@@ -39,8 +44,12 @@ public class TripCreationService {
     public TripSummaryResponse create(TripCreateRequest request) {
         requireOriginSite();
 
+        if (!deliveryPointRepository.existsById(request.deliveryPointId())) {
+            throw new DeliveryPointNotFoundException(request.deliveryPointId());
+        }
+
         UUID tripId = UUID.randomUUID();
-        TripMaster master = new TripMaster(tripId, thisSiteId, request.destinationSiteId());
+        TripMaster master = new TripMaster(tripId, thisSiteId, request.destinationSiteId(), request.deliveryPointId());
         TripState state = new TripState(tripId, "AtOrigin", thisSiteId, 1);
 
         tripMasterRepository.save(master);

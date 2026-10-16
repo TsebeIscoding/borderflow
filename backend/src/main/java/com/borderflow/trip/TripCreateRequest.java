@@ -1,6 +1,8 @@
 package com.borderflow.trip;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
 
 /**
  * `originSiteId` is never accepted from the caller -- it's always this
@@ -10,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
  * always "depot" in practice.
  */
 public record TripCreateRequest(
-        @NotBlank String destinationSiteId
+        @NotBlank String destinationSiteId,
+        @NotNull UUID deliveryPointId
 ) {
 }

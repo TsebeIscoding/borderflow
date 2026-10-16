@@ -1,8 +1,10 @@
 package com.borderflow.client;
 
 import com.borderflow.common.ClientNotFoundException;
+import com.borderflow.common.DeliveryPointNotFoundException;
 import com.borderflow.common.EntityInUseException;
 import com.borderflow.common.OriginSiteOnlyException;
+import com.borderflow.deliverypoint.DeliveryPointRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -20,15 +22,18 @@ public class ConsignmentCreationService {
 
     private final ConsignmentRepository consignmentRepository;
     private final ClientCoreRepository clientCoreRepository;
+    private final DeliveryPointRepository deliveryPointRepository;
     private final String thisSiteId;
 
     public ConsignmentCreationService(
             ConsignmentRepository consignmentRepository,
             ClientCoreRepository clientCoreRepository,
+            DeliveryPointRepository deliveryPointRepository,
             @Value("${site.id}") String thisSiteId
     ) {
         this.consignmentRepository = consignmentRepository;
         this.clientCoreRepository = clientCoreRepository;
+        this.deliveryPointRepository = deliveryPointRepository;
         this.thisSiteId = thisSiteId;
     }
 
@@ -40,7 +45,11 @@ public class ConsignmentCreationService {
             throw new ClientNotFoundException(request.clientId());
         }
 
-        Consignment consignment = new Consignment(UUID.randomUUID(), request.clientId(), request.description());
+        if (!deliveryPointRepository.existsById(request.deliveryPointId())) {
+            throw new DeliveryPointNotFoundException(request.deliveryPointId());
+        }
+
+        Consignment consignment = new Consignment(UUID.randomUUID(), request.clientId(), request.description(), request.deliveryPointId());
         consignmentRepository.save(consignment);
         return ConsignmentSummaryResponse.from(consignment);
     }

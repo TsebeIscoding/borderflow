@@ -12,6 +12,7 @@ public record TripSummaryResponse(
         UUID tripId,
         String originSiteId,
         String destinationSiteId,
+        UUID deliveryPointId,
         String currentSiteId,
         String status,
         long lamportTs
@@ -21,6 +22,7 @@ public record TripSummaryResponse(
                 master.getTripId(),
                 master.getOriginSiteId(),
                 master.getDestinationSiteId(),
+                master.getDeliveryPointId(),
                 state.getCurrentSiteId(),
                 state.getStatus(),
                 state.getLamportTs()

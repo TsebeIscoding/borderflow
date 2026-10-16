@@ -165,6 +165,24 @@ cluster** — see section 9 of `docs/testing/test-results.md` for exactly
 what was exercised. **None of this has a frontend yet** — see
 `frontend/README.md`'s "Not yet built".
 
+## Delivery points
+
+Towns such as Maseru and Butha-Buthe are **delivery points inside the
+Destination site**, not separate sites: the corridor stays Depot, Border,
+Port, Destination. `delivery_point` is Master data (db/migrations V8),
+written only at Depot and replicated read-only everywhere else.
+
+- `GET /api/delivery-points` (both roles, sorted by name),
+  `GET /api/delivery-points/{id}`, `POST` and `DELETE` (OPERATOR, Depot
+  only, clean 409 if a trip or consignment still references it)
+- `POST /api/trips` and `POST /api/consignments` now **require**
+  `deliveryPointId`, validated for existence (clean 404). The columns are
+  nullable in the database only because rows created before V8 are
+  backfilled by V9.
+
+Unit tested and **verified against the live 4-site cluster** — see
+section 11 of `docs/testing/test-results.md`.
+
 ## The Handover use case, and what it does vs. leaves to the database
 
 `HandoverService` is deliberately thin. It only enforces the two rules

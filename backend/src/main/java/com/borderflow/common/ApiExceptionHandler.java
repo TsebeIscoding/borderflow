@@ -43,6 +43,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
     }
 
+    @ExceptionHandler(DeliveryPointNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(DeliveryPointNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidHandoverException.class)
     public ResponseEntity<Map<String, Object>> handleInvalid(InvalidHandoverException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body(HttpStatus.CONFLICT, ex.getMessage()));

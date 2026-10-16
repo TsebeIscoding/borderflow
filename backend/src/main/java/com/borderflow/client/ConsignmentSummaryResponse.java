@@ -5,13 +5,15 @@ import java.util.UUID;
 public record ConsignmentSummaryResponse(
         UUID consignmentId,
         UUID clientId,
-        String description
+        String description,
+        UUID deliveryPointId
 ) {
     static ConsignmentSummaryResponse from(Consignment consignment) {
         return new ConsignmentSummaryResponse(
                 consignment.getConsignmentId(),
                 consignment.getClientId(),
-                consignment.getDescription()
+                consignment.getDescription(),
+                consignment.getDeliveryPointId()
         );
     }
 }

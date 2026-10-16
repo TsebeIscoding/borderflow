@@ -52,7 +52,7 @@ class HandoverServiceTest {
 
     @Test
     void rejectsHandoverWhenThisSiteDoesNotCurrentlyHoldTheTrip() {
-        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination");
+        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination", null);
         TripState state = new TripState(TRIP_ID, "Arrived", "port", 3); // held at "port", not "border"
         when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(master));
         when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(state));
@@ -65,7 +65,7 @@ class HandoverServiceTest {
 
     @Test
     void rejectsHandoverOnAnAlreadyDeliveredTrip() {
-        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination");
+        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination", null);
         TripState state = new TripState(TRIP_ID, "Delivered", THIS_SITE, 4);
         when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(master));
         when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(state));
@@ -85,7 +85,7 @@ class HandoverServiceTest {
 
     @Test
     void handingOffToTheFinalDestinationMarksTripDelivered() {
-        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination");
+        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination", null);
         TripState state = new TripState(TRIP_ID, "Arrived", THIS_SITE, 3);
         when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(master));
         when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(state));
@@ -101,7 +101,7 @@ class HandoverServiceTest {
 
     @Test
     void handingOffToAnIntermediateSiteMarksTripArrivedNotDelivered() {
-        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination");
+        TripMaster master = new TripMaster(TRIP_ID, "depot", "destination", null);
         TripState state = new TripState(TRIP_ID, "AtOrigin", THIS_SITE, 1);
         when(tripMasterRepository.findById(TRIP_ID)).thenReturn(Optional.of(master));
         when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(state));

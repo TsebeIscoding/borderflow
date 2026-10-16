@@ -29,6 +29,9 @@ public class TripMaster {
     @Column(name = "destination_site_id")
     private String destinationSiteId;
 
+    @Column(name = "delivery_point_id")
+    private UUID deliveryPointId;
+
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
@@ -36,10 +39,11 @@ public class TripMaster {
         // JPA
     }
 
-    public TripMaster(UUID tripId, String originSiteId, String destinationSiteId) {
+    public TripMaster(UUID tripId, String originSiteId, String destinationSiteId, UUID deliveryPointId) {
         this.tripId = tripId;
         this.originSiteId = originSiteId;
         this.destinationSiteId = destinationSiteId;
+        this.deliveryPointId = deliveryPointId;
         this.createdAt = OffsetDateTime.now();
     }
 
@@ -53,6 +57,11 @@ public class TripMaster {
 
     public String getDestinationSiteId() {
         return destinationSiteId;
+    }
+
+    /** Null only for trips created before V8 and not yet backfilled by V9. */
+    public UUID getDeliveryPointId() {
+        return deliveryPointId;
     }
 
     public OffsetDateTime getCreatedAt() {
