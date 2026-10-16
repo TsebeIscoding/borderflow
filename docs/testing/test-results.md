@@ -323,3 +323,113 @@ on the trip and consignment create forms, and the town shown on the trip
 page), and creating and deleting delivery points through the API. Delete
 relies on the same flush-then-catch pattern as the other Master fragments
 and is covered only by a unit test for the non-Depot rejection.
+
+
+## 12. Consignment details — schema, backend, live verification — PASS
+
+A consignment used to be only a client, a description and a delivery
+point. V10 adds the details freight work needs: a backend-issued
+reference number (`CON-2026-0001`, from a Depot-only sequence), cargo
+type (General, Refrigerated, Hazardous, Bulk), total weight, package
+count, optional declared value with currency, customs reference,
+handling notes, a business delivery location (free text, business
+addresses only) and an expected delivery date. They are Master data like
+the rest of the consignment: set at creation, never edited. All columns
+are nullable only because rows created before V10 have none of them;
+the application requires cargo type, weight and package count.
+
+**Schema (live, all four sites):**
+
+| Check | Expected | Result |
+|---|---|---|
+| V10 at Border, Port, Destination, then Depot | no errors; Depot also creates the sequence | clean |
+| New columns present at every site | 10 of 10 | 10 / 10 / 10 / 10 |
+| `UPDATE ... SET total_weight_kg = -5` | refused by the CHECK constraint | `violates check constraint "consignment_total_weight_kg_check"` |
+| V11 backfill of reference numbers | existing consignments numbered from the sequence | `UPDATE 2`, same two numbers at all four sites |
+
+**Backend, via `scripts/consignment-details-test.sh` against the live
+cluster (19 checks, all passing):**
+
+| Check | Expected | Result |
+|---|---|---|
+| Valid create | 200, reference issued | 200, `CON-2026-0003` (follows the two backfilled numbers) |
+| Cargo type and package count echoed | as sent | as sent |
+| Unknown cargo type | 400 | 400 |
+| Declared value without currency | 400, message mentions "together" | 400, correct message |
+| Zero weight | 400 | 400 |
+| Missing package count | 400 | 400 |
+| Rejected requests leave no rows | only the valid request counted | confirmed |
+| Created row with details at all four sites | present everywhere | 1 at every site |
+| Delete | 204, row gone at all four sites | 204, 0 at every site |
+
+The script deletes its own test row, so it can be re-run without leaving
+data behind. Reference numbers are not reused, so a deleted test row
+leaves a gap in the sequence; that is normal for reference numbers.
+53 unit tests became 56 (three new consignment tests); reported passing.
+
+**False alarm worth recording.** The first live attempt returned 200 for
+requests that should have been rejected, and the response contained only
+the old four fields. The Depot backend had not been restarted onto the
+new code, so none of the new validation applied, and four consignments
+with no details were created and had to be deleted. Lesson: after a code
+change, check that the response *shape* contains the new fields before
+trusting any status code. A second, separate slip: the first version of
+the script mistyped a variable name (`$PGW` for `$PGPW`), so its database
+checks failed with "unbound variable" instead of testing anything. That
+was a script bug, not a system bug, and it was fixed and re-run clean.
+
+**Not yet exercised:** the browser UI for consignment details (the
+two-column create form and the richer list), and the same details shown
+from a non-Depot site.
+
+
+## 13. Trip assembly: vehicle and driver on a trip — schema, backend — PASS
+
+A trip's **current vehicle and driver** are volatile (a driver is swapped,
+a truck breaks down), so under the project's vertical fragmentation they
+belong in the trip's State fragment (`trip_state.vehicle_id` /
+`driver_id`, V12), resolved by Lamport timestamp like position and
+status. The history of who was assigned or released is an append-only
+event log (`trip_assignment`), deduped by primary key like handover,
+milestone and incident.
+
+**Schema and replication (live, all four sites):**
+
+| Check | Expected | Result |
+|---|---|---|
+| V12 applied at Border, Port, Destination, then Depot, back to back | no errors | ten statements each, clean |
+| `extend-replication-v12.sh` | all subscriptions enabled afterwards | all 16 `t` |
+| New columns on `trip_state` and the new table at every site | 2 columns, 1 table | 2 / 1 at every site |
+| Event inserted at Border | present at all four sites | 1 / 1 / 1 / 1 |
+| `delete` and `update` on `trip_assignment` as `app_user` | refused (append-only) | `permission denied` for both |
+
+**Design note: no unique index on assignments.** A unique index on a
+replicated table would make two simultaneous assignments at different
+sites fail while being *applied*, which halts replication. "One active
+trip per driver or vehicle" is instead checked by the application at the
+site that holds the trip, whose "must hold" rule keeps concurrent
+assignment from happening in normal operation. (An earlier proposal in
+this project promised database-level enforcement; this corrects it.)
+
+**Backend, via `scripts/trip-assembly-test.sh` against the live cluster
+(reported: all checks passing):** assign, swap and release a vehicle;
+assign a driver; a vehicle or driver already on another active trip is
+refused with a 409; unknown IDs return 404; an auditor cannot assign but
+can read the history; a container can be linked to only one active trip;
+the history rows come back in order (vehicle 1 assigned, released, vehicle
+2 assigned...); and the assignments and trip state replicate to all four
+sites. The script removes everything it creates, including its history
+rows, so it can be re-run. 68 unit tests (11 new for assembly, 1 for the
+one-active-trip container rule); reported passing.
+
+**False alarm worth recording.** The first live run failed 31 of 50
+checks: every new endpoint returned 401 and the container rule did not
+apply. The Depot backend had not been restarted onto the new code, so the
+routes did not exist and Spring's error handling answered with the
+generic 401 (the masked-401 pattern of sections 6 and 8). Setup and
+cleanup still worked, which also confirmed the script's cleanup path.
+After the restart the same script passed.
+
+**Not yet built or exercised:** whole-trip handover (moving a trip's
+containers, vehicle and driver together with it), and any UI for
+assignment, containers, milestones and incidents on the trip page.

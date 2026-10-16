@@ -380,6 +380,18 @@ Full rationale for all of the above:
   against the live cluster (see section 11 of
   `docs/testing/test-results.md`); the UI for it has not been
   exercised in a browser yet.
+- ✅ Consignment details: backend-issued reference number
+  (`CON-2026-0001`), cargo type, weight, package count, optional declared
+  value and currency, customs reference, handling notes, business delivery
+  location and expected date. Schema, replication and backend verified
+  against the live cluster (section 12 of `docs/testing/test-results.md`);
+  the UI for it has not been exercised in a browser yet.
+- ✅ Trip assembly (backend): a trip's current vehicle and driver live in
+  its State fragment and every change is logged in an append-only
+  history; a vehicle, driver or container can be on only one active trip.
+  Schema, replication and backend verified against the live cluster
+  (section 13 of `docs/testing/test-results.md`). **No UI yet**, and
+  handing over a trip does not yet move its assigned resources.
 - ✅ Authentication: fully built and verified — login, both roles,
   cross-site trust, RBAC enforcement, all tested against the live
   cluster, including across 4 genuinely separate, simultaneously

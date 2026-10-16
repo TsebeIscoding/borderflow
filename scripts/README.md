@@ -126,3 +126,34 @@ and needs fixing before anything else.
 - No script exists for the Container/Vehicle/Driver/Client fragments
   added in `db/migrations/*/V4*` — those schema changes have been
   generated but not yet applied or tested on the live cluster.
+
+## `consignment-details-test.sh`
+
+Live check of consignment details (V10) against a running Depot backend
+and the four databases: creates one consignment and checks the issued
+reference number, runs the rejection cases (unknown cargo type, declared
+value without currency, zero weight, missing package count), confirms the
+row replicated with its details to all four sites, then deletes it and
+confirms the delete replicated.
+
+Needs the Depot backend on `:8080`, the four DB port-forwards, `jq` and
+`psql`, plus at least one client and one delivery point. Run it with
+`bash scripts/consignment-details-test.sh`. Safe to re-run: it removes its
+own test row (reference numbers are not reused, so the sequence will show
+a gap). Exits non-zero if any check fails.
+
+## `trip-assembly-test.sh`
+
+Live check of trip assembly (V12 + backend): assigning, swapping and
+releasing a vehicle, assigning a driver, the "only one active trip" rules
+for vehicles, drivers and containers, 404 and 403 handling, the ordered
+assignment history, and replication of assignments and trip state to all
+four sites. Creates its own trips, vehicles, driver and container, then
+deletes them and removes the history rows it produced (as the database
+admin via `kubectl`, because the log is append-only for the application),
+so it can be re-run.
+
+Needs the Depot backend on `:8080`, the four DB port-forwards, `kubectl`
+access to the Depot database pod, `jq` and `psql`, plus at least one
+consignment and one delivery point. Run with
+`bash scripts/trip-assembly-test.sh`; exits non-zero if any check fails.
