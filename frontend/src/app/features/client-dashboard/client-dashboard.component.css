@@ -3,3 +3,34 @@
   font-size: 0.72rem;
   justify-self: end;
 }
+
+/* Client list: name + action. (The shared 4-column manifest grid squeezed names into a 6rem column.) */
+.bf-manifest__row--client {
+  grid-template-columns: 1fr auto;
+}
+
+/* Consignment list: client, description, action */
+.bf-manifest__row--consignment {
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 2fr) auto;
+}
+
+@media (max-width: 640px) {
+  .bf-manifest__row--consignment {
+    grid-template-columns: 1fr auto;
+  }
+
+  .bf-manifest__row--consignment > :nth-child(1) {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .bf-manifest__row--consignment > :nth-child(2) {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+
+  .bf-manifest__row--consignment > :nth-child(3) {
+    grid-row: 1;
+    grid-column: 2;
+  }
+}

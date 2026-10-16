@@ -81,3 +81,22 @@
 .bf-create-panel .bf-form {
   max-width: 22rem;
 }
+
+@media (max-width: 640px) {
+  .bf-manifest__row {
+    grid-template-columns: 1fr auto;
+    row-gap: 0.5rem;
+  }
+
+  .bf-manifest__row--head {
+    display: none;
+  }
+
+  .bf-manifest__lamport {
+    text-align: right;
+  }
+
+  .bf-create-panel {
+    padding: 1.1rem;
+  }
+}

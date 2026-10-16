@@ -22,6 +22,15 @@
           }
         </select>
       </label>
+      <label class="bf-form__field">
+        <span class="bf-form__label">Delivery point</span>
+        <select formControlName="deliveryPointId" class="bf-form__input">
+          <option value="" disabled>Select delivery point</option>
+          @for (point of deliveryPoints(); track point.deliveryPointId) {
+            <option [value]="point.deliveryPointId">{{ point.name }}</option>
+          }
+        </select>
+      </label>
       <button type="submit" class="bf-btn bf-btn--primary" [disabled]="createForm.invalid || creating()">
         {{ creating() ? 'Creating…' : 'Create trip' }}
       </button>

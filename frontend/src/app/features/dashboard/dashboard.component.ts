@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TripService } from '../../core/services/trip.service';
+import { DeliveryPointService } from '../../core/services/delivery-point.service';
+import { DeliveryPoint } from '../../core/models/delivery-point.model';
 import { SITE_LABELS, SITE_ORDER, TripSummary } from '../../core/models/trip.model';
 import { RouteRailComponent } from '../../shared/route-rail/route-rail.component';
 import { AuthService } from '../../core/auth/auth.service';
@@ -17,11 +19,13 @@ import { environment } from '../../../environments/environment';
 })
 export class DashboardComponent implements OnInit {
   private readonly tripService = inject(TripService);
+  private readonly deliveryPointService = inject(DeliveryPointService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
   readonly trips = signal<TripSummary[]>([]);
+  readonly deliveryPoints = signal<DeliveryPoint[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -36,6 +40,7 @@ export class DashboardComponent implements OnInit {
 
   readonly createForm = this.fb.nonNullable.group({
     destinationSiteId: ['', Validators.required],
+    deliveryPointId: ['', Validators.required],
   });
 
   ngOnInit(): void {
@@ -44,6 +49,13 @@ export class DashboardComponent implements OnInit {
 
   private load(): void {
     this.loading.set(true);
+
+    // Best-effort: only needed to populate the create form's delivery point dropdown.
+    this.deliveryPointService.listDeliveryPoints().subscribe({
+      next: (points) => this.deliveryPoints.set(points),
+      error: () => {},
+    });
+
     this.tripService.listTrips().subscribe({
       next: (trips) => {
         this.trips.set(trips);

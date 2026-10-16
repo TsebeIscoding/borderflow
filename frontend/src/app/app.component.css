@@ -6,7 +6,8 @@
   row-gap: 0.75rem;
   padding: 1.25rem 2rem;
   border-bottom: 1px solid var(--bf-border);
-  background: var(--bf-surface);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
 }
 
 .bf-header__brand {
@@ -19,14 +20,14 @@
 
 .bf-header__mark {
   font-size: 1.3rem;
-  color: var(--bf-accent);
+  color: var(--bf-accent-text);
 }
 
 .bf-header__wordmark {
   font-family: var(--bf-font-display);
   font-weight: 700;
   font-size: 1.05rem;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
 }
 
 .bf-header__site {
@@ -121,6 +122,41 @@
 }
 
 .bf-header__nav-link--active {
-  color: var(--bf-accent);
+  color: var(--bf-accent-text);
   border-bottom-color: var(--bf-accent);
+}
+
+@media (max-width: 900px) {
+  .bf-header {
+    padding: 1rem 1.25rem;
+  }
+
+  /* Nav drops to its own full-width row and scrolls sideways rather than wrapping into a ragged block */
+  .bf-header__nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .bf-header__nav-link {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .bf-main {
+    padding: 1.25rem 1rem;
+  }
+
+  .bf-header__right {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .bf-header__site {
+    align-items: flex-start;
+  }
 }

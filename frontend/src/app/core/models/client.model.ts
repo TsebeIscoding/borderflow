@@ -18,9 +18,12 @@ export interface ConsignmentSummary {
   consignmentId: string;
   clientId: string;
   description: string;
+  /** Null only for consignments created before delivery points existed and not yet backfilled. */
+  deliveryPointId: string | null;
 }
 
 export interface ConsignmentCreateRequest {
   clientId: string;
   description: string;
+  deliveryPointId: string;
 }

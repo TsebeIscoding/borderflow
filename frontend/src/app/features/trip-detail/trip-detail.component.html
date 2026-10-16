@@ -26,6 +26,9 @@
       >
         {{ t.status }}
       </span>
+      @if (t.deliveryPointId) {
+        <span class="bf-detail__lamport">Delivery: {{ deliveryPointName(t.deliveryPointId) }}</span>
+      }
       <span class="bf-detail__lamport">lamport_ts {{ t.lamportTs }}</span>
     </div>
   </div>

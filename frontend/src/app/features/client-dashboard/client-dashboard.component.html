@@ -44,17 +44,13 @@
   </div>
 } @else {
   <div class="bf-panel bf-manifest">
-    <div class="bf-manifest__row bf-manifest__row--head">
+    <div class="bf-manifest__row bf-manifest__row--head bf-manifest__row--client">
       <span>Name</span>
-      <span></span>
-      <span></span>
       <span></span>
     </div>
     @for (client of clients(); track client.clientId) {
-      <div class="bf-manifest__row">
+      <div class="bf-manifest__row bf-manifest__row--client">
         <span class="bf-manifest__id">{{ client.name }}</span>
-        <span></span>
-        <span></span>
         @if (canWrite) {
           <button
             type="button"

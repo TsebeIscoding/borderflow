@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ClientService } from '../../core/services/client.service';
+import { DeliveryPointService } from '../../core/services/delivery-point.service';
+import { DeliveryPoint } from '../../core/models/delivery-point.model';
 import { ClientSummary, ConsignmentSummary } from '../../core/models/client.model';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
@@ -16,11 +18,13 @@ import { environment } from '../../../environments/environment';
 })
 export class ConsignmentDashboardComponent implements OnInit {
   private readonly clientService = inject(ClientService);
+  private readonly deliveryPointService = inject(DeliveryPointService);
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
 
   readonly consignments = signal<ConsignmentSummary[]>([]);
   readonly clients = signal<ClientSummary[]>([]);
+  readonly deliveryPoints = signal<DeliveryPoint[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -35,6 +39,7 @@ export class ConsignmentDashboardComponent implements OnInit {
   readonly createForm = this.fb.nonNullable.group({
     clientId: ['', Validators.required],
     description: ['', Validators.required],
+    deliveryPointId: ['', Validators.required],
   });
 
   ngOnInit(): void {
@@ -54,12 +59,22 @@ export class ConsignmentDashboardComponent implements OnInit {
       },
     });
 
+    this.deliveryPointService.listDeliveryPoints().subscribe({
+      next: (points) => this.deliveryPoints.set(points),
+      error: () => {},
+    });
+
     // Best-effort: only needed to render client names / populate the create dropdown.
     // If this fails, consignment rows just fall back to showing the raw clientId.
     this.clientService.listClients().subscribe({
       next: (clients) => this.clients.set(clients),
       error: () => {},
     });
+  }
+
+  deliveryPointName(deliveryPointId: string | null): string {
+    if (!deliveryPointId) return 'No delivery point';
+    return this.deliveryPoints().find((p) => p.deliveryPointId === deliveryPointId)?.name ?? deliveryPointId.slice(0, 8);
   }
 
   clientName(clientId: string): string {

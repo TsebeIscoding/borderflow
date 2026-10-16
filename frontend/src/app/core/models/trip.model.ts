@@ -8,6 +8,8 @@ export interface TripSummary {
   tripId: string;
   originSiteId: string;
   destinationSiteId: string;
+  /** Null only for trips created before delivery points existed and not yet backfilled. */
+  deliveryPointId: string | null;
   currentSiteId: string;
   status: TripStatus;
   lamportTs: number;
@@ -43,4 +45,5 @@ export interface HandoverResponse {
 /** Mirrors backend TripCreateRequest -- originSiteId is never sent, the backend always uses its own site.id. */
 export interface TripCreateRequest {
   destinationSiteId: string;
+  deliveryPointId: string;
 }

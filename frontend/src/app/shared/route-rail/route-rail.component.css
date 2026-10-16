@@ -27,13 +27,13 @@
 .bf-rail__waypoint[data-state='cleared'] .bf-rail__dot {
   color: var(--bf-success);
   border-color: var(--bf-success-dim);
-  background: rgba(63, 185, 80, 0.1);
+  background: rgba(22, 128, 60, 0.1);
 }
 
 .bf-rail__waypoint[data-state='current'] .bf-rail__dot {
-  color: var(--bf-accent);
-  border-color: var(--bf-accent);
-  background: rgba(255, 138, 52, 0.12);
+  color: var(--bf-transit);
+  border-color: var(--bf-transit);
+  background: rgba(107, 76, 230, 0.12);
 }
 
 .bf-rail__label {

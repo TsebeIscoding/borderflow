@@ -1,45 +1,62 @@
 /* ============================================================
    BorderFlow design tokens
-   Freight-yard palette: near-black steel, safety-orange for
-   "in transit / current position", customs-clear green for
-   delivered. Not a SaaS dashboard palette on purpose -- this is
-   an operational tool for depot/border/port/destination staff,
-   modeled on shipping manifests and customs stamps rather than
-   a generic admin template.
+   Light "mint" theme: soft mint-to-white background, vivid green
+   for brand/primary actions, deep green for delivered/cleared,
+   violet for "in transit / current position" so the two greens
+   never carry two meanings. Vivid green is used for fills and
+   rings only; text on light backgrounds uses --bf-accent-text
+   (vivid green fails contrast as text on white).
    ============================================================ */
 
 :root {
   /* Color */
-  --bf-bg: #14171c;
-  --bf-surface: #1c2128;
-  --bf-surface-raised: #232933;
-  --bf-border: #2d333b;
-  --bf-text: #e6e8eb;
-  --bf-text-muted: #8b949e;
-  --bf-accent: #ff8a34;      /* in-transit / current waypoint */
-  --bf-accent-dim: #7a4423;
-  --bf-success: #3fb950;     /* delivered / customs-clear */
-  --bf-success-dim: #1f4d28;
-  --bf-danger: #f85149;
+  --bf-bg: #f6fdf8;
+  --bf-surface: #ffffff;
+  --bf-surface-raised: #eefaf1;
+  --bf-border: #d3e8d9;
+  --bf-text: #1b2a20;
+  --bf-text-muted: #5b6b60;
+
+  --bf-accent: #2ee05a;          /* brand green: fills, rings, underlines */
+  --bf-accent-hover: #22c94c;
+  --bf-accent-ink: #062b14;      /* text on top of --bf-accent */
+  --bf-accent-text: #16803c;     /* green used as text on light surfaces */
+  --bf-accent-dim: #bfeccb;
+
+  --bf-transit: #6b4ce6;         /* in transit / current waypoint */
+  --bf-transit-dim: #d9d0fa;
+
+  --bf-success: #16803c;         /* delivered / customs-clear */
+  --bf-success-dim: #bfe3c9;
+  --bf-danger: #d92d20;
 
   /* Type */
-  --bf-font-display: 'IBM Plex Sans Condensed', sans-serif;
+  --bf-font-display: 'Inter', sans-serif;
   --bf-font-body: 'Inter', sans-serif;
   --bf-font-mono: 'IBM Plex Mono', monospace;
 
-  /* Layout */
-  --bf-radius: 3px;
+  /* Shape */
+  --bf-radius: 12px;
+  --bf-radius-pill: 999px;
+  --bf-shadow: 0 1px 2px rgba(20, 60, 30, 0.06), 0 10px 28px rgba(20, 60, 30, 0.07);
+
+  color-scheme: light;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html,
+html {
+  background: var(--bf-bg);
+}
+
 body {
   margin: 0;
   padding: 0;
-  background: var(--bf-bg);
+  min-height: 100vh;
+  background: linear-gradient(180deg, #def9e4 0%, var(--bf-bg) 30%, #ffffff 75%) no-repeat;
+  background-color: var(--bf-bg);
   color: var(--bf-text);
   font-family: var(--bf-font-body);
   font-size: 15px;
@@ -72,7 +89,7 @@ h2,
 h3 {
   font-family: var(--bf-font-display);
   font-weight: 700;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
@@ -88,24 +105,25 @@ h3 {
   background: var(--bf-surface);
   border: 1px solid var(--bf-border);
   border-radius: var(--bf-radius);
+  box-shadow: var(--bf-shadow);
 }
 
 .bf-btn {
-  font-family: var(--bf-font-display);
+  font-family: var(--bf-font-body);
   font-weight: 600;
-  font-size: 0.85rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 0.65rem 1.1rem;
-  border-radius: var(--bf-radius);
-  border: 1px solid var(--bf-border);
+  font-size: 0.9rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: var(--bf-radius-pill);
+  border: 1px solid transparent;
   background: var(--bf-surface-raised);
-  color: var(--bf-text);
+  color: var(--bf-accent-text);
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .bf-btn:hover:not(:disabled) {
   border-color: var(--bf-accent);
+  background: #e3fbe9;
 }
 
 .bf-btn:disabled {
@@ -116,11 +134,12 @@ h3 {
 .bf-btn--primary {
   background: var(--bf-accent);
   border-color: var(--bf-accent);
-  color: #1a1103;
+  color: var(--bf-accent-ink);
 }
 
 .bf-btn--primary:hover:not(:disabled) {
-  background: #ffa15f;
+  background: var(--bf-accent-hover);
+  border-color: var(--bf-accent-hover);
 }
 
 .bf-btn--danger {
@@ -130,7 +149,8 @@ h3 {
 }
 
 .bf-btn--danger:hover:not(:disabled) {
-  background: rgba(248, 81, 73, 0.1);
+  background: rgba(217, 45, 32, 0.08);
+  border-color: var(--bf-danger);
 }
 
 .bf-status-chip {
@@ -150,11 +170,101 @@ h3 {
 .bf-status-chip--delivered {
   color: var(--bf-success);
   border-color: var(--bf-success-dim);
-  background: rgba(63, 185, 80, 0.08);
+  background: rgba(22, 128, 60, 0.08);
 }
 
 .bf-status-chip--transit {
-  color: var(--bf-accent);
-  border-color: var(--bf-accent-dim);
-  background: rgba(255, 138, 52, 0.08);
+  color: var(--bf-transit);
+  border-color: var(--bf-transit-dim);
+  background: rgba(107, 76, 230, 0.08);
+}
+
+/* ============================================================
+   Shared form + utility styles
+   These used to live inside trip-detail.component.css, which
+   Angular scopes to that one component -- so every dashboard
+   create-form rendered with no layout and default white inputs.
+   Defined once here so every page gets them.
+   ============================================================ */
+
+.bf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bf-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.bf-form__label {
+  font-family: var(--bf-font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bf-text-muted);
+}
+
+.bf-form__input {
+  width: 100%;
+  min-height: 2.5rem;
+  background: var(--bf-bg);
+  border: 1px solid var(--bf-border);
+  border-radius: var(--bf-radius);
+  color: var(--bf-text);
+  padding: 0.6rem 0.7rem;
+  font-family: var(--bf-font-body);
+  font-size: 0.9rem;
+}
+
+.bf-form__input::placeholder {
+  color: var(--bf-text-muted);
+  opacity: 0.7;
+}
+
+.bf-form__input:hover {
+  border-color: var(--bf-text-muted);
+}
+
+.bf-form__input:focus {
+  border-color: var(--bf-accent);
+}
+
+.bf-form .bf-btn {
+  align-self: flex-start;
+}
+
+.bf-form__error {
+  color: var(--bf-danger);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.bf-form__success {
+  color: var(--bf-success);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.bf-hint {
+  color: var(--bf-text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 640px) {
+  html,
+  body {
+    font-size: 14px;
+  }
+
+  .bf-btn {
+    padding: 0.6rem 0.9rem;
+  }
 }

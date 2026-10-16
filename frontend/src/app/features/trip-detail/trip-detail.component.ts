@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TripService } from '../../core/services/trip.service';
+import { DeliveryPointService } from '../../core/services/delivery-point.service';
+import { DeliveryPoint } from '../../core/models/delivery-point.model';
 import { SITE_LABELS, SITE_ORDER, SiteId, TripSummary } from '../../core/models/trip.model';
 import { RouteRailComponent } from '../../shared/route-rail/route-rail.component';
 import { environment } from '../../../environments/environment';
@@ -18,11 +20,13 @@ import { AuthService } from '../../core/auth/auth.service';
 export class TripDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly tripService = inject(TripService);
+  private readonly deliveryPointService = inject(DeliveryPointService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
   readonly trip = signal<TripSummary | null>(null);
+  readonly deliveryPoints = signal<DeliveryPoint[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly submitting = signal(false);
@@ -45,6 +49,16 @@ export class TripDetailComponent implements OnInit {
   ngOnInit(): void {
     const tripId = this.route.snapshot.paramMap.get('id')!;
     this.load(tripId);
+
+    // Best-effort: only needed to show the delivery point's name.
+    this.deliveryPointService.listDeliveryPoints().subscribe({
+      next: (points) => this.deliveryPoints.set(points),
+      error: () => {},
+    });
+  }
+
+  deliveryPointName(deliveryPointId: string): string {
+    return this.deliveryPoints().find((p) => p.deliveryPointId === deliveryPointId)?.name ?? deliveryPointId.slice(0, 8);
   }
 
   private load(tripId: string): void {
