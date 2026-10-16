@@ -16,7 +16,7 @@
             "index": "src/index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "assets": [],
+            "assets": [{ "glob": "**/*", "input": "src/assets", "output": "/assets" }],
             "styles": ["src/styles.css"],
             "scripts": [],
             "polyfills": ["zone.js"]
@@ -77,8 +77,5 @@
         }
       }
     }
-  },
-  "cli": {
-    "analytics": "1417c97b-10fa-48cd-ba84-6dfaa11ebcb0"
   }
 }

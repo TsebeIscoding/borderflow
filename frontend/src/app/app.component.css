@@ -1,3 +1,38 @@
+/*
+ * Page background picture. Signed in: the dashboard picture. Signed out
+ * (the login page): the login picture. Both picture files are set in
+ * src/styles.css (--bf-bg-image-dashboard / --bf-bg-image-login).
+ *
+ * The picture sits on a fixed layer behind the content, with a light veil
+ * of the page colour on top so panels and text stay readable whatever
+ * picture is used. A fixed layer (rather than background-attachment:
+ * fixed) is used because mobile browsers handle it more smoothly.
+ */
+.bf-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+}
+
+.bf-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(246, 253, 248, var(--bf-bg-veil-dashboard)), rgba(246, 253, 248, var(--bf-bg-veil-dashboard))),
+    var(--bf-bg-image-dashboard);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.bf-shell--login::before {
+  background-image:
+    linear-gradient(rgba(246, 253, 248, var(--bf-bg-veil-login)), rgba(246, 253, 248, var(--bf-bg-veil-login))),
+    var(--bf-bg-image-login);
+}
+
 .bf-header {
   display: flex;
   align-items: center;

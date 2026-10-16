@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ClientService } from '../../core/services/client.service';
 import { DeliveryPointService } from '../../core/services/delivery-point.service';
 import { DeliveryPoint } from '../../core/models/delivery-point.model';
-import { ClientSummary, ConsignmentSummary } from '../../core/models/client.model';
+import { CARGO_TYPES, CURRENCIES, ClientSummary, ConsignmentSummary } from '../../core/models/client.model';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
 
@@ -35,11 +35,22 @@ export class ConsignmentDashboardComponent implements OnInit {
   readonly deleteError = signal<string | null>(null);
 
   readonly canWrite = this.auth.isOperator && environment.siteId === 'depot';
+  readonly cargoTypes = CARGO_TYPES;
+  readonly currencies = CURRENCIES;
 
   readonly createForm = this.fb.nonNullable.group({
     clientId: ['', Validators.required],
     description: ['', Validators.required],
     deliveryPointId: ['', Validators.required],
+    cargoType: ['General', Validators.required],
+    totalWeightKg: [null as number | null, [Validators.required, Validators.min(0.01)]],
+    packageCount: [null as number | null, [Validators.required, Validators.min(1)]],
+    declaredValue: [null as number | null, Validators.min(0)],
+    currency: ['LSL'],
+    customsReference: [''],
+    handlingNotes: [''],
+    deliveryLocation: [''],
+    expectedDeliveryDate: [''],
   });
 
   ngOnInit(): void {
@@ -81,13 +92,44 @@ export class ConsignmentDashboardComponent implements OnInit {
     return this.clients().find((c) => c.clientId === clientId)?.name ?? clientId.slice(0, 8);
   }
 
+  /** One line summarising the optional and cargo details, skipping anything that is empty. */
+  detailLine(consignment: ConsignmentSummary): string {
+    const parts: string[] = [];
+    if (consignment.cargoType) parts.push(consignment.cargoType);
+    if (consignment.totalWeightKg !== null) parts.push(`${consignment.totalWeightKg} kg`);
+    if (consignment.packageCount !== null) parts.push(`${consignment.packageCount} pkg`);
+    if (consignment.declaredValue !== null && consignment.currency) parts.push(`${consignment.declaredValue} ${consignment.currency}`);
+    if (consignment.customsReference) parts.push(`customs ${consignment.customsReference}`);
+    if (consignment.expectedDeliveryDate) parts.push(`due ${consignment.expectedDeliveryDate}`);
+    return parts.join(' · ');
+  }
+
   submitCreate(): void {
     if (this.createForm.invalid) return;
+
+    const v = this.createForm.getRawValue();
+    if (v.totalWeightKg === null || v.packageCount === null) return;
+
+    // Declared value and currency go together; blank optional text is sent as null.
+    const hasValue = v.declaredValue !== null;
 
     this.creating.set(true);
     this.createError.set(null);
 
-    this.clientService.createConsignment(this.createForm.getRawValue()).subscribe({
+    this.clientService.createConsignment({
+      clientId: v.clientId,
+      description: v.description,
+      deliveryPointId: v.deliveryPointId,
+      cargoType: v.cargoType,
+      totalWeightKg: v.totalWeightKg,
+      packageCount: v.packageCount,
+      declaredValue: hasValue ? v.declaredValue : null,
+      currency: hasValue ? v.currency : null,
+      customsReference: v.customsReference.trim() || null,
+      handlingNotes: v.handlingNotes.trim() || null,
+      deliveryLocation: v.deliveryLocation.trim() || null,
+      expectedDeliveryDate: v.expectedDeliveryDate || null,
+    }).subscribe({
       next: () => {
         this.creating.set(false);
         this.showCreateForm.set(false);

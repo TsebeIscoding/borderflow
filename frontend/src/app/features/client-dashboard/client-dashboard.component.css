@@ -34,3 +34,15 @@
     grid-column: 2;
   }
 }
+
+/* Consignment create form: two columns on wide screens, one on phones. */
+.bf-create-panel .bf-form--grid {
+  max-width: 46rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.bf-form__field--wide {
+  grid-column: 1 / -1;
+}

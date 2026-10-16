@@ -1,33 +1,35 @@
-<header class="bf-header">
-  <a routerLink="/" class="bf-header__brand">
-    <span class="bf-header__mark">⛨</span>
-    <span class="bf-header__wordmark">BORDERFLOW</span>
-  </a>
-  @if (auth.isAuthenticated) {
-    <nav class="bf-header__nav">
-      <a routerLink="/" routerLinkActive="bf-header__nav-link--active" [routerLinkActiveOptions]="{ exact: true }" class="bf-header__nav-link">Trips</a>
-      <a routerLink="/containers" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Containers</a>
-      <a routerLink="/vehicles" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Vehicles</a>
-      <a routerLink="/drivers" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Drivers</a>
-      <a routerLink="/clients" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Clients</a>
-      <a routerLink="/consignments" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Consignments</a>
-    </nav>
-  }
-  <div class="bf-header__right">
-    <div class="bf-header__site">
-      <span class="bf-header__site-label">Operating at</span>
-      <span class="bf-header__site-value">{{ siteLabel }}</span>
-    </div>
+<div class="bf-shell" [class.bf-shell--login]="!auth.isAuthenticated">
+  <header class="bf-header">
+    <a routerLink="/" class="bf-header__brand">
+      <span class="bf-header__mark">⛨</span>
+      <span class="bf-header__wordmark">BORDERFLOW</span>
+    </a>
     @if (auth.isAuthenticated) {
-      <div class="bf-header__user">
-        <span class="bf-header__user-name">{{ auth.session()?.username }}</span>
-        <span class="bf-header__user-role">{{ auth.session()?.role }}</span>
-        <button type="button" class="bf-header__logout" (click)="auth.logout()">Sign out</button>
-      </div>
+      <nav class="bf-header__nav">
+        <a routerLink="/" routerLinkActive="bf-header__nav-link--active" [routerLinkActiveOptions]="{ exact: true }" class="bf-header__nav-link">Trips</a>
+        <a routerLink="/containers" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Containers</a>
+        <a routerLink="/vehicles" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Vehicles</a>
+        <a routerLink="/drivers" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Drivers</a>
+        <a routerLink="/clients" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Clients</a>
+        <a routerLink="/consignments" routerLinkActive="bf-header__nav-link--active" class="bf-header__nav-link">Consignments</a>
+      </nav>
     }
-  </div>
-</header>
+    <div class="bf-header__right">
+      <div class="bf-header__site">
+        <span class="bf-header__site-label">Operating at</span>
+        <span class="bf-header__site-value">{{ siteLabel }}</span>
+      </div>
+      @if (auth.isAuthenticated) {
+        <div class="bf-header__user">
+          <span class="bf-header__user-name">{{ auth.session()?.username }}</span>
+          <span class="bf-header__user-role">{{ auth.session()?.role }}</span>
+          <button type="button" class="bf-header__logout" (click)="auth.logout()">Sign out</button>
+        </div>
+      }
+    </div>
+  </header>
 
-<main class="bf-main">
-  <router-outlet />
-</main>
+  <main class="bf-main">
+    <router-outlet />
+  </main>
+</div>

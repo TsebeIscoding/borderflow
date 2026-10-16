@@ -41,6 +41,21 @@
   --bf-shadow: 0 1px 2px rgba(20, 60, 30, 0.06), 0 10px 28px rgba(20, 60, 30, 0.07);
 
   color-scheme: light;
+
+  /* ------------------------------------------------------------
+     Background pictures. Files live in frontend/src/assets/images/
+     and are served from /assets/images/. To use your own pictures,
+     replace the two files (same names) or change the file names here.
+       dashboard: every page after sign-in (Trips, Containers, ...)
+       login:     the sign-in page
+     ------------------------------------------------------------ */
+  --bf-bg-image-dashboard: url('/assets/images/dashboard-bg.jpg');
+  --bf-bg-image-login: url('/assets/images/login-bg.jpg');
+
+  /* How much of the page colour is laid over the picture, so text stays
+     readable. 0 = picture at full strength, 1 = picture hidden. */
+  --bf-bg-veil-dashboard: 0.68;
+  --bf-bg-veil-login: 0.68;
 }
 
 * {
