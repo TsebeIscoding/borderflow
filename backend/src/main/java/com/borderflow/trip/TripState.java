@@ -32,6 +32,13 @@ public class TripState {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
+    /** The trip's current vehicle and driver -- volatile, so part of the State fragment (V12). Null until assigned. */
+    @Column(name = "vehicle_id")
+    private UUID vehicleId;
+
+    @Column(name = "driver_id")
+    private UUID driverId;
+
     protected TripState() {
         // JPA
     }
@@ -62,6 +69,32 @@ public class TripState {
 
     public OffsetDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public UUID getVehicleId() {
+        return vehicleId;
+    }
+
+    public UUID getDriverId() {
+        return driverId;
+    }
+
+    /**
+     * Sets or clears the current vehicle (null clears it). Like advance(),
+     * the caller chooses the next lamport_ts; the Postgres trigger decides
+     * whether the write wins against a concurrent one.
+     */
+    public void assignVehicle(UUID newVehicleId, long newLamportTs) {
+        this.vehicleId = newVehicleId;
+        this.lamportTs = newLamportTs;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    /** Sets or clears the current driver (null clears it). See assignVehicle. */
+    public void assignDriver(UUID newDriverId, long newLamportTs) {
+        this.driverId = newDriverId;
+        this.lamportTs = newLamportTs;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**

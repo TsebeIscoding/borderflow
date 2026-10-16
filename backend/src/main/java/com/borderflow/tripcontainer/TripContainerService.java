@@ -52,6 +52,10 @@ public class TripContainerService {
     @Transactional
     public void link(UUID tripId, UUID containerId) {
         requireBothHeldHere(tripId, containerId);
+        if (tripContainerRepository.existsOnOtherActiveTrip(containerId, tripId)) {
+            throw new InvalidTripContainerLinkException(
+                    "Container " + containerId + " is already on another active trip -- unlink it there first");
+        }
         // Idempotent by design -- the database's own dedup trigger
         // (skip_duplicate_trip_container) silently absorbs a repeat
         // link of the same pair, so no existence check is needed here.

@@ -3,12 +3,14 @@ package com.borderflow.client;
 import com.borderflow.common.ClientNotFoundException;
 import com.borderflow.common.DeliveryPointNotFoundException;
 import com.borderflow.common.EntityInUseException;
+import com.borderflow.common.InvalidConsignmentDetailsException;
 import com.borderflow.common.OriginSiteOnlyException;
 import com.borderflow.deliverypoint.DeliveryPointRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -49,7 +51,29 @@ public class ConsignmentCreationService {
             throw new DeliveryPointNotFoundException(request.deliveryPointId());
         }
 
-        Consignment consignment = new Consignment(UUID.randomUUID(), request.clientId(), request.description(), request.deliveryPointId());
+        if ((request.declaredValue() == null) != (request.currency() == null)) {
+            throw new InvalidConsignmentDetailsException("declaredValue and currency must be given together");
+        }
+
+        // Taken after every check above, so a rejected request does not use up a number.
+        String referenceNumber = String.format("CON-%d-%04d", LocalDate.now().getYear(), consignmentRepository.nextReferenceSequence());
+
+        Consignment consignment = new Consignment(
+                UUID.randomUUID(),
+                request.clientId(),
+                request.description(),
+                request.deliveryPointId(),
+                referenceNumber,
+                request.cargoType(),
+                request.totalWeightKg(),
+                request.packageCount(),
+                request.declaredValue(),
+                request.currency(),
+                blankToNull(request.customsReference()),
+                blankToNull(request.handlingNotes()),
+                blankToNull(request.deliveryLocation()),
+                request.expectedDeliveryDate()
+        );
         consignmentRepository.save(consignment);
         return ConsignmentSummaryResponse.from(consignment);
     }
@@ -65,6 +89,10 @@ public class ConsignmentCreationService {
         } catch (DataIntegrityViolationException e) {
             throw new EntityInUseException("Consignment " + consignmentId + " cannot be deleted -- it still has related records referencing it");
         }
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void requireOriginSite() {

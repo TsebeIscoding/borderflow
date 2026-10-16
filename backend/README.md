@@ -183,6 +183,51 @@ written only at Depot and replicated read-only everywhere else.
 Unit tested and **verified against the live 4-site cluster** — see
 section 11 of `docs/testing/test-results.md`.
 
+## Consignment details
+
+A consignment carries the details freight work needs, all set at creation
+and never edited (Master data, V10): a backend-issued **reference number**
+(`CON-2026-0001`, from a Depot-only sequence — never accepted from the
+caller), cargo type (General, Refrigerated, Hazardous, Bulk), total weight,
+package count, optional declared value with currency (given together or not
+at all), customs reference, handling notes, a business delivery location
+(free text, **business addresses only** — no names, phone numbers or home
+addresses; `client_contact` remains the only place personal data could ever
+live, and it has no code) and an expected delivery date.
+
+Cargo type, weight and package count are required on create. Invalid
+values return a clean 400; consignments created before V10 have blank
+details and a backfilled reference number (V11).
+
+Unit tested and **verified against the live 4-site cluster** — see
+section 12 of `docs/testing/test-results.md`.
+
+## Trip assembly: vehicle and driver
+
+A trip's **current vehicle and driver** are volatile, so they live in the
+trip's State fragment (`trip_state.vehicle_id` / `driver_id`, V12) and are
+resolved by Lamport timestamp like position and status. Every change also
+appends a row to the append-only `trip_assignment` history log, so a driver
+can appear on many trips over time and a mid-trip swap leaves a record.
+
+- `POST /api/trips/{id}/vehicle/{vehicleId}`, `DELETE /api/trips/{id}/vehicle`,
+  `POST /api/trips/{id}/driver/{driverId}`, `DELETE /api/trips/{id}/driver`
+  (OPERATOR) and `GET /api/trips/{id}/assignments` (both roles)
+- The site must hold the trip (and, to assign, the vehicle or driver), and
+  the trip must not be Delivered.
+- A vehicle or driver can be on only one **active** (not yet Delivered) trip.
+  This is checked here, at the holding site, **not** by a unique index: on a
+  replicated table, two sites assigning the same driver at once would make
+  one fail while being applied, which halts replication.
+- A container can likewise be linked to only one active trip.
+- Assigning a different vehicle or driver releases the old one first;
+  re-assigning the current one, or releasing when none is assigned, is a no-op.
+
+Unit tested and **verified against the live 4-site cluster** — see
+section 13 of `docs/testing/test-results.md`. Whole-trip
+handover (moving a trip's containers, vehicle and driver together with it)
+is not built yet.
+
 ## The Handover use case, and what it does vs. leaves to the database
 
 `HandoverService` is deliberately thin. It only enforces the two rules

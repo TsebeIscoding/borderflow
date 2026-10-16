@@ -77,4 +77,19 @@ class TripContainerServiceTest {
                 .isInstanceOf(InvalidTripContainerLinkException.class)
                 .hasMessageContaining("port");
     }
+
+    @Test
+    void linkIsRejectedWhenContainerIsAlreadyOnAnotherActiveTrip() {
+        TripContainerService service = new TripContainerService(
+                tripMasterRepository, tripStateRepository, containerMasterRepository, containerStateRepository,
+                tripContainerRepository, "depot");
+
+        when(tripStateRepository.findById(TRIP_ID)).thenReturn(Optional.of(new TripState(TRIP_ID, "AtOrigin", "depot", 1)));
+        when(containerStateRepository.findById(CONTAINER_ID)).thenReturn(Optional.of(new ContainerState(CONTAINER_ID, "AtOrigin", "depot", 1)));
+        when(tripContainerRepository.existsOnOtherActiveTrip(CONTAINER_ID, TRIP_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.link(TRIP_ID, CONTAINER_ID))
+                .isInstanceOf(InvalidTripContainerLinkException.class)
+                .hasMessageContaining("another active trip");
+    }
 }

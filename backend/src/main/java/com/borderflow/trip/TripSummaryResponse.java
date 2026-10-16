@@ -15,7 +15,9 @@ public record TripSummaryResponse(
         UUID deliveryPointId,
         String currentSiteId,
         String status,
-        long lamportTs
+        long lamportTs,
+        UUID vehicleId,
+        UUID driverId
 ) {
     public static TripSummaryResponse from(TripMaster master, TripState state) {
         return new TripSummaryResponse(
@@ -25,7 +27,9 @@ public record TripSummaryResponse(
                 master.getDeliveryPointId(),
                 state.getCurrentSiteId(),
                 state.getStatus(),
-                state.getLamportTs()
+                state.getLamportTs(),
+                state.getVehicleId(),
+                state.getDriverId()
         );
     }
 }
