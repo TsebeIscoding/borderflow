@@ -373,6 +373,13 @@ Full rationale for all of the above:
   404/400 handling, and replication of inserts and deletes to all four
   sites (see section 9 of `docs/testing/test-results.md`). **No
   frontend exists for any of it yet.**
+- ✅ Delivery points: towns such as Maseru and Butha-Buthe are delivery
+  points inside the Destination site (not separate sites). Master data
+  written at Depot and replicated to all four sites; every new trip and
+  consignment requires one. Schema, replication and backend verified
+  against the live cluster (see section 11 of
+  `docs/testing/test-results.md`); the UI for it has not been
+  exercised in a browser yet.
 - ✅ Authentication: fully built and verified — login, both roles,
   cross-site trust, RBAC enforcement, all tested against the live
   cluster, including across 4 genuinely separate, simultaneously

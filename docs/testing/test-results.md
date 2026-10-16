@@ -282,3 +282,44 @@ after the constraint was added, and the non-depot sites' copy of the
 constraint beyond the `ALTER TABLE` succeeding. Replication apply does
 not fire foreign-key checks, so this is not expected to differ from
 before, but it has not been confirmed.
+
+
+## 11. Delivery points — schema, replication, backend — PASS
+
+Towns such as Maseru and Butha-Buthe are **delivery points inside the
+Destination site**, not separate sites, so the four-site corridor and
+the replication mesh are unchanged. `delivery_point` is a Master
+fragment: written only at Depot, replicated read-only to the other three
+sites. Trips and consignments each carry a nullable `delivery_point_id`
+(nullable only because rows created before V8 needed backfilling; the
+application requires one on every new row).
+
+**Schema and replication (live, all four sites):**
+
+| Check | Expected | Result |
+|---|---|---|
+| V8 applied at Border, Port, Destination, then Depot | no errors, Depot seeds 10 towns | clean, `INSERT 0 10` at Depot |
+| `extend-replication-v8.sh` | all subscriptions enabled afterwards | all 16 subscriptions `t` |
+| `delivery_point` row count at every site | 10 | 10 / 10 / 10 / 10 |
+| Write to `delivery_point` as `app_user` at Border | refused | `permission denied for table delivery_point` |
+| V9 backfill at Depot | existing trips and consignments pointed at Maseru | `UPDATE 2` for each table |
+| Backfill replicated | same counts at all four sites | 2 trips, 2 consignments at every site |
+| Dangling references (trip or consignment pointing at a missing delivery point) | 0 | 0 / 0 at every site |
+
+**Ordering note.** Postgres does not replicate DDL, so V8 was applied at
+the three non-Depot sites *before* Depot. Had Depot sent rows carrying
+the new column first, the other sites would have failed to apply them
+and their subscriptions would have stalled. The V9 backfill was
+deliberately run only after the table had replicated everywhere.
+
+**Backend (reported passing; individual response bodies were not
+recorded here):** 53 unit tests pass, 5 of them new. Against the live
+cluster: a trip created without a delivery point is rejected (400), one
+with a nonexistent delivery point returns a clean 404, and a non-Depot
+backend lists the replicated towns.
+
+**Not yet exercised:** the browser UI for delivery points (the dropdown
+on the trip and consignment create forms, and the town shown on the trip
+page), and creating and deleting delivery points through the API. Delete
+relies on the same flush-then-catch pattern as the other Master fragments
+and is covered only by a unit test for the non-Depot rejection.
