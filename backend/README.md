@@ -236,7 +236,8 @@ whether the vehicle and driver did. A vehicle and driver become free for
 another trip automatically once their trip is Delivered, because the
 "one active trip" rule looks at trip status.
 
-Unit tested; **not yet verified against the live cluster.**
+Unit tested and **verified against the live 4-site cluster** — see
+section 14 of `docs/testing/test-results.md`.
 
 ## The Handover use case, and what it does vs. leaves to the database
 
