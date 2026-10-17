@@ -224,9 +224,19 @@ can appear on many trips over time and a mid-trip swap leaves a record.
   re-assigning the current one, or releasing when none is assigned, is a no-op.
 
 Unit tested and **verified against the live 4-site cluster** — see
-section 13 of `docs/testing/test-results.md`. Whole-trip
-handover (moving a trip's containers, vehicle and driver together with it)
-is not built yet.
+section 13 of `docs/testing/test-results.md`.
+
+**Whole-trip handover.** Handing a trip over also moves its linked
+containers, assigned vehicle and assigned driver to the receiving site in
+the same transaction, each arriving as `Arrived` exactly as a separate
+relocation would. The sending site must hold *all* of them: otherwise the
+hand-off is refused with a 409 naming what is elsewhere, and nothing moves
+(never half a trip). The response reports how many containers moved and
+whether the vehicle and driver did. A vehicle and driver become free for
+another trip automatically once their trip is Delivered, because the
+"one active trip" rule looks at trip status.
+
+Unit tested; **not yet verified against the live cluster.**
 
 ## The Handover use case, and what it does vs. leaves to the database
 

@@ -8,6 +8,9 @@ public record HandoverResponse(
         String fromSiteId,
         String toSiteId,
         String newStatus,
-        long lamportTs
+        long lamportTs,
+        int containersMoved,
+        boolean vehicleMoved,
+        boolean driverMoved
 ) {
 }

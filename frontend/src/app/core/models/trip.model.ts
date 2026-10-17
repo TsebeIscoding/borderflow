@@ -40,6 +40,10 @@ export interface HandoverResponse {
   toSiteId: string;
   newStatus: TripStatus;
   lamportTs: number;
+  /** The trip's load moves with it: linked containers, assigned vehicle and driver. */
+  containersMoved: number;
+  vehicleMoved: boolean;
+  driverMoved: boolean;
 }
 
 /** Mirrors backend TripCreateRequest -- originSiteId is never sent, the backend always uses its own site.id. */

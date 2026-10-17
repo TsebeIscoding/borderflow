@@ -1,14 +1,26 @@
 package com.borderflow.handover;
 
+import com.borderflow.common.DriverNotFoundException;
 import com.borderflow.common.InvalidHandoverException;
 import com.borderflow.common.TripNotFoundException;
+import com.borderflow.common.VehicleNotFoundException;
+import com.borderflow.container.ContainerState;
+import com.borderflow.container.ContainerStateRepository;
+import com.borderflow.driver.DriverAvailability;
+import com.borderflow.driver.DriverAvailabilityRepository;
 import com.borderflow.trip.TripMaster;
 import com.borderflow.trip.TripMasterRepository;
 import com.borderflow.trip.TripState;
 import com.borderflow.trip.TripStateRepository;
+import com.borderflow.tripcontainer.TripContainer;
+import com.borderflow.tripcontainer.TripContainerRepository;
+import com.borderflow.vehicle.VehicleAvailability;
+import com.borderflow.vehicle.VehicleAvailabilityRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -17,6 +29,12 @@ import java.util.UUID;
  * here -- see the class-level comments on TripState/TripMaster for what
  * IS left to the database (Lamport conflict resolution, event
  * idempotency, single-leader writes on Master fragments).
+ *
+ * Handing over a trip hands over the whole load: its linked containers and
+ * its assigned vehicle and driver move to the receiving site in the same
+ * transaction, arriving as "Arrived" exactly as a separate relocation would.
+ * The sending site must hold ALL of them, otherwise the hand-off is refused
+ * and nothing moves -- never half a trip.
  */
 @Service
 public class HandoverService {
@@ -24,6 +42,10 @@ public class HandoverService {
     private final TripMasterRepository tripMasterRepository;
     private final TripStateRepository tripStateRepository;
     private final HandoverRepository handoverRepository;
+    private final TripContainerRepository tripContainerRepository;
+    private final ContainerStateRepository containerStateRepository;
+    private final VehicleAvailabilityRepository vehicleAvailabilityRepository;
+    private final DriverAvailabilityRepository driverAvailabilityRepository;
 
     /**
      * Which site THIS running instance represents. Injected from
@@ -38,11 +60,19 @@ public class HandoverService {
             TripMasterRepository tripMasterRepository,
             TripStateRepository tripStateRepository,
             HandoverRepository handoverRepository,
+            TripContainerRepository tripContainerRepository,
+            ContainerStateRepository containerStateRepository,
+            VehicleAvailabilityRepository vehicleAvailabilityRepository,
+            DriverAvailabilityRepository driverAvailabilityRepository,
             @Value("${site.id}") String thisSiteId
     ) {
         this.tripMasterRepository = tripMasterRepository;
         this.tripStateRepository = tripStateRepository;
         this.handoverRepository = handoverRepository;
+        this.tripContainerRepository = tripContainerRepository;
+        this.containerStateRepository = containerStateRepository;
+        this.vehicleAvailabilityRepository = vehicleAvailabilityRepository;
+        this.driverAvailabilityRepository = driverAvailabilityRepository;
         this.thisSiteId = thisSiteId;
     }
 
@@ -74,6 +104,48 @@ public class HandoverService {
             throw new InvalidHandoverException("Trip " + tripId + " is already Delivered -- no further handover is valid");
         }
 
+        // Rule 3: the whole load moves with the trip, so this site must hold
+        // all of it. Checked before anything is written, so a refusal leaves
+        // everything exactly where it was.
+        List<String> notHeldHere = new ArrayList<>();
+
+        List<ContainerState> containers = new ArrayList<>();
+        for (TripContainer link : tripContainerRepository.findByTripId(tripId)) {
+            ContainerState container = containerStateRepository.findById(link.getContainerId()).orElse(null);
+            if (container == null) {
+                continue;
+            }
+            if (thisSiteId.equals(container.getCurrentSiteId())) {
+                containers.add(container);
+            } else {
+                notHeldHere.add("container " + link.getContainerId() + " is at '" + container.getCurrentSiteId() + "'");
+            }
+        }
+
+        VehicleAvailability vehicle = null;
+        if (state.getVehicleId() != null) {
+            vehicle = vehicleAvailabilityRepository.findById(state.getVehicleId())
+                    .orElseThrow(() -> new VehicleNotFoundException(state.getVehicleId()));
+            if (!thisSiteId.equals(vehicle.getCurrentSiteId())) {
+                notHeldHere.add("vehicle " + state.getVehicleId() + " is at '" + vehicle.getCurrentSiteId() + "'");
+            }
+        }
+
+        DriverAvailability driver = null;
+        if (state.getDriverId() != null) {
+            driver = driverAvailabilityRepository.findById(state.getDriverId())
+                    .orElseThrow(() -> new DriverNotFoundException(state.getDriverId()));
+            if (!thisSiteId.equals(driver.getCurrentSiteId())) {
+                notHeldHere.add("driver " + state.getDriverId() + " is at '" + driver.getCurrentSiteId() + "'");
+            }
+        }
+
+        if (!notHeldHere.isEmpty()) {
+            throw new InvalidHandoverException(
+                    "Trip " + tripId + " cannot be handed off from '" + thisSiteId + "' -- its load is not all held here: "
+                            + String.join("; ", notHeldHere));
+        }
+
         String newStatus = request.toSiteId().equals(master.getDestinationSiteId())
                 ? "Delivered"
                 : "Arrived";
@@ -91,13 +163,32 @@ public class HandoverService {
         state.advance(request.toSiteId(), newStatus, newLamportTs);
         tripStateRepository.save(state);
 
+        // The load moves with the trip. Each lands on "Arrived", as a separate
+        // relocation would (containers, vehicles and drivers have no Delivered
+        // status; see ContainerRelocationService).
+        for (ContainerState container : containers) {
+            container.advance(request.toSiteId(), "Arrived", container.getLamportTs() + 1);
+            containerStateRepository.save(container);
+        }
+        if (vehicle != null) {
+            vehicle.relocateTo(request.toSiteId(), vehicle.getLamportTs() + 1);
+            vehicleAvailabilityRepository.save(vehicle);
+        }
+        if (driver != null) {
+            driver.relocateTo(request.toSiteId(), driver.getLamportTs() + 1);
+            driverAvailabilityRepository.save(driver);
+        }
+
         return new HandoverResponse(
                 event.getEventId(),
                 tripId,
                 thisSiteId,
                 request.toSiteId(),
                 newStatus,
-                newLamportTs
+                newLamportTs,
+                containers.size(),
+                vehicle != null,
+                driver != null
         );
     }
 }
