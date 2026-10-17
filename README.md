@@ -390,8 +390,11 @@ Full rationale for all of the above:
   its State fragment and every change is logged in an append-only
   history; a vehicle, driver or container can be on only one active trip.
   Schema, replication and backend verified against the live cluster
-  (section 13 of `docs/testing/test-results.md`). **No UI yet**, and
-  handing over a trip does not yet move its assigned resources.
+  (section 13 of `docs/testing/test-results.md`). **No UI yet.**
+- ✅ Whole-trip handover: handing a trip over moves its linked containers,
+  vehicle and driver with it in one transaction, and is refused (moving
+  nothing) unless the sending site holds all of them. Verified against the
+  live cluster (section 14 of `docs/testing/test-results.md`).
 - ✅ Authentication: fully built and verified — login, both roles,
   cross-site trust, RBAC enforcement, all tested against the live
   cluster, including across 4 genuinely separate, simultaneously
