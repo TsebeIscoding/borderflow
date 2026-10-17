@@ -433,3 +433,44 @@ After the restart the same script passed.
 **Not yet built or exercised:** whole-trip handover (moving a trip's
 containers, vehicle and driver together with it), and any UI for
 assignment, containers, milestones and incidents on the trip page.
+
+
+## 14. Whole-trip handover — backend — PASS
+
+Handing a trip over now hands over the whole load: the trip's linked
+containers, assigned vehicle and assigned driver move to the receiving
+site in the same transaction, each arriving as `Arrived` exactly as a
+separate relocation would. The sending site must hold *all* of them;
+otherwise the hand-off is refused with a 409 naming what is elsewhere and
+nothing is written (never half a trip). The handover response reports how
+many containers moved and whether the vehicle and driver did.
+
+**Verified via `scripts/whole-trip-handover-test.sh` against the live
+cluster (reported: all checks passing):**
+
+| Check | Expected | Result |
+|---|---|---|
+| Hand trip A (with a container, vehicle and driver) to Border | 200; one container, the vehicle and the driver reported moved | as expected |
+| Trip, container, vehicle and driver all at Border, at every site's database | all four sites agree | confirmed at all four sites |
+| Container status after the move | `Arrived` | `Arrived` |
+| Trip B's vehicle relocated to Port on its own, then trip B handed to Border | 409 naming the vehicle | 409, message names the vehicle |
+| After the refusal: trip B, its container and its driver | did not move | all still at Depot |
+| After the refusal: handover events for trip B | none written | 0 |
+| Cleanup | all test rows gone at all four sites | confirmed |
+
+72 unit tests (4 new: the full move, and one refusal each for a container,
+vehicle and driver held at another site); reported passing.
+
+**Design notes.** Containers, vehicles and drivers have no `Delivered`
+status, so even when the trip reaches its destination they arrive as
+`Arrived` (the known simplification documented in
+`ContainerRelocationService`). A vehicle and driver become free for
+another trip automatically once their trip is `Delivered`, because the
+"one active trip" rule of section 13 looks at trip status rather than at a
+separate release step. The cleanup in the script removes event rows
+(container links, assignments, handover events) as the database admin,
+because the application treats those tables as append-only and, once the
+container has moved to Border, it cannot be unlinked from Depot.
+
+**Not yet exercised:** any UI for assignment, containers, milestones and
+incidents on the trip page, and what moved on a hand-off.

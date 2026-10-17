@@ -157,3 +157,18 @@ Needs the Depot backend on `:8080`, the four DB port-forwards, `kubectl`
 access to the Depot database pod, `jq` and `psql`, plus at least one
 consignment and one delivery point. Run with
 `bash scripts/trip-assembly-test.sh`; exits non-zero if any check fails.
+
+## `whole-trip-handover-test.sh`
+
+Live check of whole-trip handover: hands a trip (with a linked container,
+an assigned vehicle and an assigned driver) to Border and confirms all four
+moved, at every site's database; then moves another trip's vehicle away on
+its own and confirms handing that trip over is refused with a 409 and
+moves nothing, and writes no handover event. Removes everything it creates
+(event rows as the database admin through `kubectl`), so it can be re-run.
+
+Needs the Depot backend on `:8080`, the four DB port-forwards, `kubectl`
+access to the Depot database pod, `jq` and `psql`, plus at least one
+consignment and one delivery point. Run with
+`bash scripts/whole-trip-handover-test.sh`; exits non-zero if any check
+fails.
